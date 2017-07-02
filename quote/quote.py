@@ -23,7 +23,7 @@ class Quote:
             await self.add_quote(m)
 
     def add_quote(message):
-        await client.send_message(message.channel, '"' + message.content + '" - ' + message.author)
+        await client.send_message(message.channel, "'" + message.content + "' - " + message.author)
 
     def setup(bot):
         n = Quote(bot)
