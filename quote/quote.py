@@ -22,7 +22,7 @@ class Quote:
             m = reaction.message
             await self.add_quote(m)
 
-    def add_quote(message)
+    def add_quote(message):
         await self.bot.send_message(message.channel, '"' + message.content + '" - ' + message.author)
 
     def setup(bot):
