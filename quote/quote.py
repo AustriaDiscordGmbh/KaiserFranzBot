@@ -32,18 +32,18 @@ class Quote:
             await self.add_quote(reaction.message, user)
 
     async def add_quote(self, message, user):
-        quote = quote_from_message(message, user)
+        quote = self.quote_from_message(message, user)
         self.quotes.append(quote)
-        store_quotes()
-        send_quote_to_channel(quote, message.channel)
+        self.store_quotes()
+        self.send_quote_to_channel(quote, message.channel)
 
     async def send_quote_to_channel(self, quote, channel):
-        em = gen_embed(quote)
+        em = self.gen_embed(quote)
         await self.bot.send_message(channel, embed=em)
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        await send_quote_to_channel(get_random_quote)
+        await self.send_quote_to_channel(get_random_quote)
 
     def gen_embed(self, quote):
         author = quote.get("author")
@@ -58,9 +58,6 @@ class Quote:
                       icon_url=avatar)
         em.set_footer(text='Quote {} made at {} UTC by {}'.format(quote_id, timestamp, adder))
         return em
-        timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
-        avatar = author.avatar_url if author.avatar \
-            else author.default_avatar_url
 
     def quote_from_message(self, message, user):
         quote = {}
@@ -81,7 +78,7 @@ class Quote:
             if q.get("id") == str(qid):
                 self.quotes.remove(q)
                 break
-        store_quotes()
+        self.store_quotes()
 
     def store_quotes(self):
         with open('quotes.json', 'w') as out:
