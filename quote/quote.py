@@ -20,9 +20,6 @@ class Quote:
             self.quotes = []
         self.bot = bot
 
-    def __del__(self):
-        store_quotes()
-
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾" and reaction.count == 1:
             await self.add_quote(reaction.message, user)
