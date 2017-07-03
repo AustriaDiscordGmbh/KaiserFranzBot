@@ -14,18 +14,13 @@ class Quote:
     __version__ = "0.1"
 
     def __init__(self, bot):
-        try:
-            f = open('quotes.json', 'r')
-        except:
-            f = open('quotes.json', 'w')
-        f.close()
-
-        with open('quotes.json', 'r') as data:
-            try:
-                self.quotes = json.load(data)
-            except:
-                self.quotes = []
         self.bot = bot
+
+        try:
+            with open('quotes.json', 'r') as f:
+                self.quotes = json.load(f)
+        except FileNotFoundError:
+            self.quotes = []
 
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾" and reaction.count == 1:
@@ -73,7 +68,7 @@ class Quote:
 
     def get_random_quote(self):
         return random.choice(self.quotes)
-    
+
     def delete_quote(self, qid):
         for q in self.quotes:
             if q.get("id") == str(qid):
