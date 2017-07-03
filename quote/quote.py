@@ -19,7 +19,7 @@ class Quote:
         try:
             with open('quotes.json', 'r') as f:
                 self.quotes = json.load(f)
-        except Exception:
+        except FileNotFoundError:
             self.quotes = []
 
     async def on_reaction_add(self, reaction, user):
