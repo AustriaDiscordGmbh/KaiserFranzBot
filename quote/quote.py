@@ -48,14 +48,14 @@ class Quote:
         quote_id = quote.get("id")
         em = discord.Embed(description=content,
                            color=discord.Color.purple())
-        em.set_author(name='Quote from {}'.format(author.name),
+        em.set_author(name='Quote from {}'.format(author),
                       icon_url=avatar)
         em.set_footer(text='Quote {} made at {} UTC by {}'.format(quote_id, timestamp, adder))
         return em
 
     def quote_from_message(self, message, user):
         quote = {}
-        quote["author"] = message.author
+        quote["author"] = message.author.name
         quote["adder"] = user.name
         quote["content"] = message.clean_content
         quote["id"] = str(message.id)
