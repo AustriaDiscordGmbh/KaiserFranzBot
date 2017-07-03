@@ -18,7 +18,8 @@ class Quote:
 
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾" and reaction.count == 1:
-            await self.add_quote(reaction.message, user)
+            if reaction.message.author != discord.id:
+                await self.add_quote(reaction.message, user)
 
     async def add_quote(self, message, user):
         author = message.author
