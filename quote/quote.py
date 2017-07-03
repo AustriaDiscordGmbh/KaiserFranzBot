@@ -34,6 +34,10 @@ class Quote:
         em = gen_embed(quote)
         await self.bot.send_message(channel, embed=em)
 
+    @commands.command(name="quote", pass_context=True)
+    async def get_quote(self, ctx):
+        await send_quote_to_channel(get_random_quote)
+
     def gen_embed(self, quote):
         author = quote.get("author")
         content = quote.get("content")
@@ -61,6 +65,9 @@ class Quote:
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
         return quote
+
+    def get_random_quote(self):
+        return random.choice(self.quotes)
 
     def store_quotes(self):
         with open('quotes.json') as out:
