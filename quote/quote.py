@@ -18,9 +18,9 @@ class Quote:
 
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾":
-            await self.add_quote(reaction.message)
+            await self.add_quote(reaction.message, user)
 
-    async def add_quote(self, message):
+    async def add_quote(self, message, user):
         author = message.author
         content = message.clean_content
         timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
@@ -31,7 +31,7 @@ class Quote:
                            color=discord.Color.purple())
         em.set_author(name='Quote from {}'.format(author.name),
                       icon_url=avatar)
-        em.set_footer(text='Quote made at {} UTC'.format(timestamp))
+        em.set_footer(text='Quote made at {} UTC by {}'.format(timestamp, user))
         await self.bot.send_message(message.channel, embed=em)
 
 def setup(bot):
