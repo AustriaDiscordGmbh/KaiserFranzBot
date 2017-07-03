@@ -106,7 +106,6 @@ class SuggestionBox:
 
 
     async def send_suggest(self, message, server):
-
         author = message.author
         suggestion = message.clean_content.replace("!suggest ", "", 1)
         timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
