@@ -60,7 +60,7 @@ class Quote:
         quote["author"] = message.author
         quote["adder"] = user.name
         quote["content"] = message.clean_content
-        quote["id"] = message.id
+        quote["id"] = str(message.id)
         quote["time"] = message.timestamp.strftime('%Y-%m-%d %H:%M')
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
@@ -68,6 +68,13 @@ class Quote:
 
     def get_random_quote(self):
         return random.choice(self.quotes)
+    
+    def delete_quote(self, qid):
+        for q in self.quotes:
+            if q.get("id") == str(qid):
+                self.quotes.remove(q)
+                break
+        store_quotes()
 
     def store_quotes(self):
         with open('quotes.json') as out:
