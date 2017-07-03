@@ -30,7 +30,7 @@ class Quote:
         quote = self.quote_from_message(message, user)
         self.quotes.append(quote)
         self.store_quotes()
-        self.send_quote_to_channel(quote, message.channel)
+        await self.send_quote_to_channel(quote, message.channel)
 
     async def send_quote_to_channel(self, quote, channel):
         em = self.gen_embed(quote)
