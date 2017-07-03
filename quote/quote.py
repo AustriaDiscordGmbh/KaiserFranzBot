@@ -16,15 +16,13 @@ class Quote:
     def __init__(self, bot):
         self.bot = bot
 
-    @client.event
-    async def on_reaction_add(reaction, user):
-        if reaction.emoji.name == ":sweat_drops:":
-            m = reaction.message
-            await self.add_quote(m)
+    async def on_reaction_add(self, reaction, user):
+        if reaction.emoji == "💾":
+            await self.add_quote(reaction.message)
 
-    async def add_quote(message):
-        await client.send_message(message.channel, "'" + message.content + "' - " + message.author)
+    async def add_quote(self, message):
+        await self.bot.send_message(message.channel,
+            "'{}' - {}".format(message.content, message.author.name))
 
-    def setup(bot):
-        n = Quote(bot)
-        bot.add_cog(n)
+def setup(bot):
+    bot.add_cog(Quote(bot))
