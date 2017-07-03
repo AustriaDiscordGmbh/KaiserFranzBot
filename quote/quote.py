@@ -43,7 +43,7 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        await self.send_quote_to_channel(get_random_quote)
+        await self.send_quote_to_channel(self.get_random_quote())
 
     def gen_embed(self, quote):
         author = quote.get("author")
@@ -66,6 +66,7 @@ class Quote:
         quote["content"] = message.clean_content
         quote["id"] = str(message.id)
         quote["time"] = message.timestamp.strftime('%Y-%m-%d %H:%M')
+        author = message.author
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
         return quote
