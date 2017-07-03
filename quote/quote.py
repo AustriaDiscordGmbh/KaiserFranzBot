@@ -22,16 +22,16 @@ class Quote:
 
     async def add_quote(self, message):
         author = message.author
-        suggestion = message.clean_content.replace("!suggest ", "", 1)
+        content = message.clean_content
         timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
         avatar = author.avatar_url if author.avatar \
             else author.default_avatar_url
 
-        em = discord.Embed(description=suggestion,
+        em = discord.Embed(description=content,
                            color=discord.Color.purple())
-        em.set_author(name='Suggestion from {}'.format(author.name),
+        em.set_author(name='Quote from {}'.format(author.name),
                       icon_url=avatar)
-        em.set_footer(text='Suggestion made at {} UTC'.format(timestamp))
+        em.set_footer(text='Quote made at {} UTC'.format(timestamp))
         await self.bot.send_message(message.channel, embed=em)
 
 def setup(bot):
