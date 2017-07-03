@@ -40,11 +40,12 @@ class Quote:
         timestamp = quote.get("time")
         avatar = quote.get("avatar_url")
         adder = quote.get("adder")
+        quote_id = quote.get("id")
         em = discord.Embed(description=content,
                            color=discord.Color.purple())
         em.set_author(name='Quote from {}'.format(author.name),
                       icon_url=avatar)
-        em.set_footer(text='Quote made at {} UTC by {}'.format(timestamp, adder))
+        em.set_footer(text='Quote {} made at {} UTC by {}'.format(quote_id, timestamp, adder))
         return em
         timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
         avatar = author.avatar_url if author.avatar \
@@ -55,6 +56,7 @@ class Quote:
         quote["author"] = message.author
         quote["adder"] = user.name
         quote["content"] = message.clean_content
+        quote["id"] = message.id
         quote["time"] = message.timestamp.strftime('%Y-%m-%d %H:%M')
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
