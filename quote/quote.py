@@ -14,7 +14,13 @@ class Quote:
     __version__ = "0.1"
 
     def __init__(self, bot):
-        with open('quotes.json') as data:
+        try:
+            f = open('quotes.json', 'r')
+        except:
+            f = open('quotes.json', 'w')
+        f.close()
+
+        with open('quotes.json', 'r') as data:
             self.quotes = json.load(data)
         if not self.quotes:
             self.quotes = []
@@ -77,7 +83,7 @@ class Quote:
         store_quotes()
 
     def store_quotes(self):
-        with open('quotes.json') as out:
+        with open('quotes.json', 'w') as out:
             json.dump(self.quotes, out)
 
 
