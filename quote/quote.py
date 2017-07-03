@@ -20,7 +20,7 @@ class Quote:
             self.quotes = []
         self.bot = bot
 
-    def __del__(self, bot):
+    def __del__(self):
         store_quotes()
 
     async def on_reaction_add(self, reaction, user):
