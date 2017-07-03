@@ -15,7 +15,6 @@ class Quote:
 
     def __init__(self, bot):
         self.bot = bot
-
         try:
             with open('quotes.json', 'r') as f:
                 self.quotes = json.load(f)
