@@ -21,9 +21,10 @@ class Quote:
         f.close()
 
         with open('quotes.json', 'r') as data:
-            self.quotes = json.load(data)
-        if not self.quotes:
-            self.quotes = []
+            try:
+                self.quotes = json.load(data)
+            except:
+                self.quotes = []
         self.bot = bot
 
     async def on_reaction_add(self, reaction, user):
