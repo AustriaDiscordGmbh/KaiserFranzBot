@@ -6,6 +6,7 @@ from discord.ext import commands
 from cogs.utils.dataIO import dataIO
 from cogs.utils import checks
 import json
+import random
 
 class Quote:
     """Simple quote cog"""
@@ -18,7 +19,7 @@ class Quote:
         try:
             with open('quotes.json', 'r') as f:
                 self.quotes = json.load(f)
-        except:
+        except Exception:
             self.quotes = []
 
     async def on_reaction_add(self, reaction, user):
