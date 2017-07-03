@@ -38,7 +38,7 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        await self.send_quote_to_channel(self.get_random_quote())
+        await self.send_quote_to_channel(self.get_random_quote(), ctx.message.channel)
 
     def gen_embed(self, quote):
         author = quote.get("author")
