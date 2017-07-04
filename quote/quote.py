@@ -89,7 +89,8 @@ class Quote:
         self.store_quotes()
 
     def gen_embed(self, quote):
-        author = quote.get("author")
+        member = discord.utils.find(lambda m: m.id == int(quote.get("aid")), channel.server.members)
+        author = member.display_name
         content = quote.get("content")
         timestamp = quote.get("time")
         avatar = quote.get("avatar")
