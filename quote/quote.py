@@ -62,6 +62,26 @@ class Quote:
         entry = random.choice(list(self.quotes[author].keys()))
         await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
 
+    @checks.admin_or_permissions(Manage_server=True)
+    @commands.command(name="delquote", pass_context=True)
+    async def del_quote(self, ctx):
+        message = ctx.message
+        qid = int(message.clean_content.replace("!suggest ", "", 1))
+        found = False
+        for author in self.quotes.keys:
+            for q in self.quotes[author].keys():
+                if q == str(qid):
+                    self.quotes.remove(q)
+                    found = True
+                    break
+            if(found):
+                break
+        if(found):
+            self.bot.send_message(channel, "Deleted quote!")
+        else:
+            self.bot.send_message(channel, "Quote not found!")
+        self.store_quotes()
+
     def gen_embed(self, quote):
         author = quote.get("author")
         content = quote.get("content")
@@ -88,22 +108,6 @@ class Quote:
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
         return quote
-
-    def delete_quote(self, qid, channel):
-        found = False
-        for author in self.quotes.keys:
-            for q in self.quotes[author].keys():
-                if q == str(qid):
-                    self.quotes.remove(q)
-                    found = True
-                    break
-            if(found):
-                break
-        if(found):
-            self.bot.send_message(channel, "Deleted quote!")
-        else:
-            self.bot.send_message(channel, "Quote not found!")
-        self.store_quotes()
 
     def store_quotes(self):
         with open('quotes.json', 'w') as out:
