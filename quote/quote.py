@@ -51,6 +51,9 @@ class Quote:
     async def get_quote(self, ctx):
         if(ctx.message.mentions):
             author = random.choice(ctx.message.mentions).id
+            if(not self.quotes.get(author)):
+                await self.bot.send_message(ctx.message.channel, "No quotes from this author")
+                return
         else:
             author = random.choice(list(self.quotes.keys()))
         entry = random.choice(list(self.quotes[author].keys()))
