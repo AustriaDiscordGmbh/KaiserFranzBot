@@ -7,6 +7,7 @@ from cogs.utils.dataIO import dataIO
 import os
 import time
 import re
+import datetime
 
 
 __version__ = '1.5.0'
@@ -183,7 +184,7 @@ class Punish:
             self.warns[str(user.id)] = {}
             entry = self.warns[str(user.id)]
             entry["cnt"] = 1
-            quote["time"] = time.strftime('%Y-%m-%d %H:%M', time.time())
+            quote["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M')
         self.save()
 
     @commands.command(pass_context=True, no_pm=True)
