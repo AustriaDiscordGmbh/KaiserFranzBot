@@ -49,7 +49,7 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        if((not self.quotes) or (len(list(self.quotes.keys())) == 0):
+        if((not self.quotes) or (len(list(self.quotes.keys())) == 0)):
             await self.bot.send_message(ctx.message.channel, "No quotes available!")
             return
         if(ctx.message.mentions):
