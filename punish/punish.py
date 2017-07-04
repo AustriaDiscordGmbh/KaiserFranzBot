@@ -172,7 +172,7 @@ class Punish:
 
         entry = self.warns.get(str(user.id))
         if(entry):
-            await self.bot.say("already punished for {} time(s)!".format(entry["cnt"]))
+            await self.bot.say("already warned {} time(s) last time at {}!".format(entry["cnt"], entry["timestamp"]))
             entry["cnt"] += 1
         else:
             self.warns[str(user.id)] = {}
