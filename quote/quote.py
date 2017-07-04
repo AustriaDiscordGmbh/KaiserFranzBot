@@ -44,7 +44,7 @@ class Quote:
         await self.send_quote_to_channel(quote, message.channel)
 
     async def send_quote_to_channel(self, quote, channel):
-        em = self.gen_embed(quote)
+        em = self.gen_embed(quote, channel)
         await self.bot.send_message(channel, embed=em)
 
     @commands.command(name="quote", pass_context=True)
@@ -88,7 +88,7 @@ class Quote:
             await self.bot.send_message(channel, "Quote not found!")
         self.store_quotes()
 
-    def gen_embed(self, quote):
+    def gen_embed(self, quote, channel):
         member = discord.utils.find(lambda m: m.id == int(quote.get("aid")), channel.server.members)
         author = member.display_name
         content = quote.get("content")
