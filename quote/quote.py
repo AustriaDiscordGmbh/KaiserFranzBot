@@ -28,8 +28,8 @@ class Quote:
 
     async def add_quote(self, message, user):
         quote = self.quote_from_message(message, user)
-        if(not quote.content):
-            self.bot.say("There is no content")
+        if(not quote["content"]):
+            await self.bot.say(message.channel, "Empty quotes are not allowed!")
             return
         self.quotes.append(quote)
         self.store_quotes()
