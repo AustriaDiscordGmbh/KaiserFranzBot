@@ -29,14 +29,14 @@ class Quote:
     async def add_quote(self, message, user):
         quote = self.quote_from_message(message, user)
         if(not quote["content"]):
-            await self.bot.say(message.channel, "Empty quotes are not allowed!")
+            await self.bot.send_message(message.channel, "Empty quotes are not allowed!")
             return
         aid = quote["aid"]
         qid = quote["qid"]
         if(not self.quotes.get(aid)):
             self.quotes[aid] = {}
         if(self.quotes[aid].get(qid)):
-            await self.bot.say(message.channel, "This message was already added!")
+            await self.bot.send_message(message.channel, "This message was already added!")
             return
 
         self.quotes[aid][qid] = quote
