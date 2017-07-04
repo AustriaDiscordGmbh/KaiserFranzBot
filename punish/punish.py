@@ -171,10 +171,7 @@ class Punish:
         def getmname(mid):
             member = discord.utils.get(ctx.message.server.members, id=mid)
             if member:
-                if member.nick:
-                    return '%s (%s)' % (member.nick, member)
-                else:
-                    return str(member)
+                return str(member)
             else:
                 return '(member not present, id #%d)'
 
