@@ -71,22 +71,16 @@ class Quote:
         message = ctx.message
         channel = message.channel
         qid = int(message.clean_content.replace("!delquote ", "", 1))
-        found = False
         for author in self.quotes.keys():
             for q in self.quotes[author].keys():
                 if q == str(qid):
                     self.quotes[author].pop(q)
                     if(not self.quotes[author].keys()):
                         self.quotes.pop(author)
-                    found = True
-                    break
-            if(found):
-                break
-        if(found):
-            await self.bot.send_message(channel, "Zitat is glöscht!")
-        else:
-            await self.bot.send_message(channel, "Ka Zitat gfunden!")
-        self.store_quotes()
+                    await self.bot.send_message(channel, "Zitat is glöscht!")
+                    self.store_quotes()
+                    return
+        await self.bot.send_message(channel, "Ka Zitat gfunden!")
 
     def gen_embed(self, quote, channel):
         member = discord.utils.find(lambda m: str(m.id) == quote.get("aid"), channel.server.members)
