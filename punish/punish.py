@@ -7,6 +7,7 @@ from cogs.utils.dataIO import dataIO
 import os
 import time
 import re
+import datetime
 
 
 __version__ = '1.5.0'
@@ -172,13 +173,19 @@ class Punish:
 
         entry = self.warns.get(str(user.id))
         if(entry):
-            await self.bot.say("already warned {} time(s) last time at {}!".format(entry["cnt"], entry["timestamp"]))
+            await self.bot.say("already warned {} time(s) last time at {}!".format(entry["cnt"], entry["time"]))
             entry["cnt"] += 1
+            last_warn = time.mktime(time.strptime(entry["time"], '%Y-%m-%d %H:%M'))
+            DAY = 86400
+            if(time.time() - last_warn < DAY):
+                await self.bot.say("Last warning not resolved, gonna punish you!")
+                await self._punish_cmd_common(ctx, user, "30m", "multiple warnings in 24h")
         else:
             self.warns[str(user.id)] = {}
             entry = self.warns[str(user.id)]
             entry["cnt"] = 1
-            entry["timestamp"] = str(time.time())
+            entry["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M')
+        self.save()
 
     @commands.command(pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_messages=True)
