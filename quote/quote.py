@@ -20,7 +20,7 @@ class Quote:
             with open('quotes.json', 'r') as f:
                 self.quotes = json.load(f)
         except FileNotFoundError:
-            self.quotes = []
+            self.quotes = {}
 
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾" and reaction.count == 1:
@@ -31,7 +31,15 @@ class Quote:
         if(not quote["content"]):
             await self.bot.say(message.channel, "Empty quotes are not allowed!")
             return
-        self.quotes.append(quote)
+        aid = quote["aid"]
+        qid = quote["qid"]
+        if(not self.quotes.get(aid)):
+            self.quotes[aid] = {}
+        if(self.quotes[aid].get(qid)):
+            await self.bot.say(message.channel, "This message was already added!")
+            return
+
+        self.quotes[aid][qid] = quote
         self.store_quotes()
         await self.send_quote_to_channel(quote, message.channel)
 
@@ -41,7 +49,9 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        await self.send_quote_to_channel(self.get_random_quote(), ctx.message.channel)
+        author = random.choice(self.quotes.keys)
+        entry = random.choice(self.quotes[author].keys)
+        await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
 
     def gen_embed(self, quote):
         author = quote.get("author")
@@ -49,7 +59,7 @@ class Quote:
         timestamp = quote.get("time")
         avatar = quote.get("avatar")
         adder = quote.get("adder")
-        quote_id = quote.get("id")
+        quote_id = quote.get("qid")
         em = discord.Embed(description=content,
                            color=discord.Color.purple())
         em.set_author(name='Quote from {}'.format(author),
@@ -60,23 +70,30 @@ class Quote:
     def quote_from_message(self, message, user):
         quote = {}
         quote["author"] = message.author.name
+        quote["aid"] = message.author.id
         quote["adder"] = user.name
         quote["content"] = message.clean_content
-        quote["id"] = str(message.id)
+        quote["qid"] = str(message.id)
         quote["time"] = message.timestamp.strftime('%Y-%m-%d %H:%M')
         author = message.author
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
         return quote
 
-    def get_random_quote(self):
-        return random.choice(self.quotes)
-
-    def delete_quote(self, qid):
-        for q in self.quotes:
-            if q.get("id") == str(qid):
-                self.quotes.remove(q)
+    def delete_quote(self, qid, channel):
+        found = False
+        for author in self.quotes.keys:
+            for q in self.quotes[author]:
+                if q.get("qid") == str(qid):
+                    self.quotes.remove(q)
+                    found = True
+                    break
+            if(found):
                 break
+        if(found):
+            self.bot.send_message(channel, "Deleted quote!")
+        else:
+            self.bot.send_message(channel, "Quote not found!")
         self.store_quotes()
 
     def store_quotes(self):
