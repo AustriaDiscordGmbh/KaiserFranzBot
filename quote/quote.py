@@ -66,6 +66,7 @@ class Quote:
     @commands.command(name="delquote", pass_context=True)
     async def del_quote(self, ctx):
         message = ctx.message
+        channel = message.channel
         qid = int(message.clean_content.replace("!delquote ", "", 1))
         found = False
         for author in self.quotes.keys():
