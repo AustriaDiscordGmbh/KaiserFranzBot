@@ -165,7 +165,7 @@ class Punish:
     async def list_warnings(self, ctx):
         """Shows a table of warned users with time and if it's still active"""
         if not (self.warns):
-            await self.bot.say("No users are currently warned")
+            await self.bot.say("Derzeit sind keine User verwarnt.")
             return
 
         def getmname(mid):
@@ -175,7 +175,7 @@ class Punish:
             else:
                 return '(member not present, id #%d)'
 
-        headers = ['Member', 'WarnCNT', 'Timestamp', 'Active']
+        headers = ['User', '#Verwarnungen', 'Zeit', 'Aktiv']
         table = []
         disp_table = []
 
