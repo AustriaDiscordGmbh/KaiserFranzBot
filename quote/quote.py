@@ -28,7 +28,7 @@ class Quote:
 
     async def add_quote(self, message, user):
         quote = self.quote_from_message(message, user)
-        if(not quote.content)
+        if(not quote.content):
             self.bot.say("There is no content")
             return
         self.quotes.append(quote)
