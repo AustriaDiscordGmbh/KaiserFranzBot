@@ -65,7 +65,7 @@ class Quote:
         else:
             await self.bot.send_message(ctx.message.channel, "No quotes available!")
 
-    @checks.admin_or_permissions(Manage_server=True)
+    @checks.admin_or_permissions(Manage_channels=True)
     @commands.command(name="delquote", pass_context=True)
     async def del_quote(self, ctx):
         message = ctx.message
