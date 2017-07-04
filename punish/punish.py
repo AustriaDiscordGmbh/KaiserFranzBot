@@ -177,7 +177,7 @@ class Punish:
             entry["cnt"] += 1
             last_warn = time.mktime(time.strptime(entry["time"], '%Y-%m-%d %H:%M'))
             DAY = 86400
-            if(time.time() - last_warn > DAY):
+            if(time.time() - last_warn < DAY):
                 await self.bot.say("Last warning not resolved, gonna punish you!")
                 await self._punish_cmd_common(ctx, user, "30m", "multiple warnings in 24h")
         else:
