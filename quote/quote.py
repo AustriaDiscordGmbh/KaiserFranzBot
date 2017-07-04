@@ -49,6 +49,9 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
+        if(not self.quotes):
+            await self.bot.send_message(message.channel, "No quotes available!")
+            return
         if(ctx.message.mentions):
             author = random.choice(ctx.message.mentions).id
             if(not self.quotes.get(author)):
