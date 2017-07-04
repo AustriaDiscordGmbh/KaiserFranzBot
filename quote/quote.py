@@ -49,7 +49,7 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        if(not self.quotes):
+        if((not self.quotes) or (len(list(self.quotes.keys())) == 0):
             await self.bot.send_message(ctx.message.channel, "No quotes available!")
             return
         if(ctx.message.mentions):
@@ -78,9 +78,9 @@ class Quote:
             if(found):
                 break
         if(found):
-            self.bot.send_message(channel, "Deleted quote!")
+            await self.bot.send_message(channel, "Deleted quote!")
         else:
-            self.bot.send_message(channel, "Quote not found!")
+            await self.bot.send_message(channel, "Quote not found!")
         self.store_quotes()
 
     def gen_embed(self, quote):
