@@ -49,7 +49,7 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        if((not self.quotes) or (len(list(self.quotes.keys())) == 0)):
+        if(not self.quotes):
             await self.bot.send_message(ctx.message.channel, "No quotes available!")
             return
         if(ctx.message.mentions):
@@ -59,8 +59,11 @@ class Quote:
                 return
         else:
             author = random.choice(list(self.quotes.keys()))
-        entry = random.choice(list(self.quotes[author].keys()))
-        await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
+        if(self.quotes[author].keys()):
+            entry = random.choice(list(self.quotes[author].keys()))
+            await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
+        else:
+            await self.bot.send_message(ctx.message.channel, "No quotes available!")
 
     @checks.admin_or_permissions(Manage_server=True)
     @commands.command(name="delquote", pass_context=True)
