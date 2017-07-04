@@ -160,6 +160,47 @@ class Punish:
         for page in pagify(tabulate(disp_table, headers)):
             await self.bot.say(box(page))
 
+    @commands.command(pass_context=True, no_pm=True, name='lswarn')
+    @checks.mod_or_permissions(manage_messages=True)
+    async def list_punished(self, ctx):
+        """Shows a table of warned users with time and if it's still active"""
+        if not (self.warns):
+            await self.bot.say("No users are currently warned")
+            return
+
+        def getmname(mid):
+            member = discord.utils.get(server.members, id=mid)
+            if member:
+                if member.nick:
+                    return '%s (%s)' % (member.nick, member)
+                else:
+                    return str(member)
+            else:
+                return '(member not present, id #%d)'
+
+        headers = ['Member', 'WarnCNT', 'Timestamp', 'Active']
+        table = []
+        disp_table = []
+        now = time.time()
+        for member_id in list(self.warns.keys()):
+            name = getmname(member_id)
+            entry = self.warns[member_id]
+            cnt = entry["cnt"]
+            timestamp = entry["time"]
+            active = " "
+            last_warn = time.mktime(time.strptime(entry["time"], '%Y-%m-%d %H:%M'))
+            DAY = 86400
+            if(time.time() - last_warn < DAY):
+                active = "*"
+            
+            table.append((name, cnt, timestamp, active))
+
+        for name, cnt, time, active in sorted(table, key=lambda x: x[1]):
+            disp_table.append((name, cnt, time, active))
+
+        for page in pagify(tabulate(disp_table, headers)):
+            await self.bot.say(box(page))
+
     @commands.command(pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_messages=True)
     async def warn(self, ctx, user: discord.Member, *, reason: str=None):
@@ -184,7 +225,7 @@ class Punish:
             self.warns[str(user.id)] = {}
             entry = self.warns[str(user.id)]
             entry["cnt"] = 1
-            entry["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M')
+        entry["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M')
         self.save()
 
     @commands.command(pass_context=True, no_pm=True)
