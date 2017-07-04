@@ -77,7 +77,6 @@ class Punish:
         self.bot = bot
         self.json = compat_load(JSON)
         self.handles = {}
-        self.analytics = CogAnalytics(self)
         bot.loop.create_task(self.on_load())
 
     def save(self):
@@ -499,10 +498,6 @@ class Punish:
             if after < server.me.top_role:
                 await self.bot.move_role(server, after,
                                          server.me.top_role.position - 1)
-
-    async def on_command(self, command, ctx):
-        if ctx.cog is self:
-            self.analytics.command(ctx)
 
 
 def compat_load(path):
