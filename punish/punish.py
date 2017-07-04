@@ -162,7 +162,7 @@ class Punish:
 
     @commands.command(pass_context=True, no_pm=True, name='lswarn')
     @checks.mod_or_permissions(manage_messages=True)
-    async def list_punished(self, ctx):
+    async def list_warnings(self, ctx):
         """Shows a table of warned users with time and if it's still active"""
         if not (self.warns):
             await self.bot.say("No users are currently warned")
@@ -181,7 +181,7 @@ class Punish:
         headers = ['Member', 'WarnCNT', 'Timestamp', 'Active']
         table = []
         disp_table = []
-        now = time.time()
+
         for member_id in list(self.warns.keys()):
             name = getmname(member_id)
             entry = self.warns[member_id]
@@ -195,8 +195,8 @@ class Punish:
             
             table.append((name, cnt, timestamp, active))
 
-        for name, cnt, time, active in sorted(table, key=lambda x: x[1]):
-            disp_table.append((name, cnt, time, active))
+        for name, cnt, ts, active in sorted(table, key=lambda x: x[1]):
+            disp_table.append((name, cnt, ts, active))
 
         for page in pagify(tabulate(disp_table, headers)):
             await self.bot.say(box(page))
