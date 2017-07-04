@@ -29,14 +29,14 @@ class Quote:
     async def add_quote(self, message, user):
         quote = self.quote_from_message(message, user)
         if(not quote["content"]):
-            await self.bot.send_message(message.channel, "Empty quotes are not allowed!")
+            await self.bot.send_message(message.channel, "Heast, leere Zitate gehn net!")
             return
         aid = quote["aid"]
         qid = quote["qid"]
         if(not self.quotes.get(aid)):
             self.quotes[aid] = {}
         if(self.quotes[aid].get(qid)):
-            await self.bot.send_message(message.channel, "This message was already added!")
+            await self.bot.send_message(message.channel, "Oida des hob i scho gspeichert!")
             return
 
         self.quotes[aid][qid] = quote
@@ -50,12 +50,12 @@ class Quote:
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
         if(not self.quotes):
-            await self.bot.send_message(ctx.message.channel, "No quotes available!")
+            await self.bot.send_message(ctx.message.channel, "I hob no kane Zitate gspeichert.")
             return
         if(ctx.message.mentions):
             author = random.choice(ctx.message.mentions).id
             if(not self.quotes.get(author)):
-                await self.bot.send_message(ctx.message.channel, "No quotes from this author")
+                await self.bot.send_message(ctx.message.channel, "Der hot no nix deppates gsogt.")
                 return
         else:
             author = random.choice(list(self.quotes.keys()))
@@ -63,7 +63,7 @@ class Quote:
             entry = random.choice(list(self.quotes[author].keys()))
             await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
         else:
-            await self.bot.send_message(ctx.message.channel, "No quotes available!")
+            await self.bot.send_message(ctx.message.channel, "I hob no kane Zitate gspeichert.")
 
     @checks.admin_or_permissions(manage_roles=True)
     @commands.command(name="delquote", pass_context=True)
@@ -83,9 +83,9 @@ class Quote:
             if(found):
                 break
         if(found):
-            await self.bot.send_message(channel, "Deleted quote!")
+            await self.bot.send_message(channel, "Zitat is glöscht!")
         else:
-            await self.bot.send_message(channel, "Quote not found!")
+            await self.bot.send_message(channel, "Ka Zitat gfunden!")
         self.store_quotes()
 
     def gen_embed(self, quote, channel):
@@ -101,9 +101,9 @@ class Quote:
         quote_id = quote.get("qid")
         em = discord.Embed(description=content,
                            color=discord.Color.purple())
-        em.set_author(name='Quote from {}'.format(author),
+        em.set_author(name='Zitat von {}'.format(author),
                       icon_url=avatar)
-        em.set_footer(text='Quote {} added at {} UTC by {}'.format(quote_id, timestamp, adder))
+        em.set_footer(text='Zitat {} hinzugfügt am {} UTC von {}'.format(quote_id, timestamp, adder))
         return em
 
     def quote_from_message(self, message, user):
