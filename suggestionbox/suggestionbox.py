@@ -57,19 +57,19 @@ class SuggestionBox:
             self.initial_config(server.id)
 
         if chan in self.settings[server.id]['output']:
-            return await self.bot.say("Channel already set as output")
+            return await self.bot.say("Die Ausgabe is scho in dem Kanal")
         for channel in server.channels:
             if str(chan) == str(channel.id):
                 if self.settings[server.id]['multiout']:
                     self.settings[server.id]['output'].append(chan)
                     self.save_json()
-                    return await self.bot.say("Channel added to output list")
+                    return await self.bot.say("Ausgabe is jetzt a in dem Kanal")
                 else:
                     self.settings[server.id]['output'] = [chan]
                     self.save_json()
-                    return await self.bot.say("Channel set as output")
+                    return await self.bot.say("Ausgabe is jetzt in dem Kanal")
 
-        await self.bot.say("I couldn\'t find a channel with that id")
+        await self.bot.say("I hob kan Kanal mit der id gfundn.")
 
     @checks.admin_or_permissions(Manage_server=True)
     @setsuggest.command(name="toggleactive", pass_context=True, no_pm=True)
@@ -82,9 +82,9 @@ class SuggestionBox:
             not self.settings[server.id]['inactive']
         self.save_json()
         if self.settings[server.id]['inactive']:
-            await self.bot.say("Suggestions disabled.")
+            await self.bot.say("Vorschläge san jetzt ausgscholtn.")
         else:
-            await self.bot.say("Suggestions enabled.")
+            await self.bot.say("Vorschläge san jetzt eingscholtn.")
 
     @commands.command(name="suggest", pass_context=True)
     async def makesuggestion(self, ctx):
@@ -93,14 +93,11 @@ class SuggestionBox:
         server = ctx.message.server
 
         if server.id not in self.settings:
-            return await self.bot.say("Suggestion submissions have not been "
-                                      "configured for this server.")
+            return await self.bot.say("I hob kane Einstellungen für Vorschläge auf dem Server.")
         if self.settings[server.id]['inactive']:
-            return await self.bot.say("Suggestion submission is not currently "
-                                      "enabled on this server.")
+            return await self.bot.say("Im Moment kannst auf dem Server kane Vorschläge einreichen.")
         if author.id in self.settings[server.id]['usercache']:
-            return await self.bot.say("Finish making your prior sugggestion "
-                                      "before making an additional one")
+            return await self.bot.say("Moch amal dein vorigen Vorschlag fertig.")
         message = ctx.message
         await self.send_suggest(message, server)
 
@@ -114,9 +111,9 @@ class SuggestionBox:
 
         em = discord.Embed(description=suggestion,
                            color=discord.Color.purple())
-        em.set_author(name='Suggestion from {}'.format(author.name),
+        em.set_author(name='Vorschlag von {}'.format(author.name),
                       icon_url=avatar)
-        em.set_footer(text='Suggestion made at {} UTC'.format(timestamp))
+        em.set_footer(text='Vorschlag eingreicht um {} UTC'.format(timestamp))
 
         for output in self.settings[server.id]['output']:
             where = server.get_channel(output)
