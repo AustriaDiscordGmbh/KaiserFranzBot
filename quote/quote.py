@@ -49,7 +49,10 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        author = random.choice(list(self.quotes.keys()))
+        if(ctx.message.mentions):
+            author = random.choice(ctx.message.mentions)
+        else:
+            author = random.choice(list(self.quotes.keys()))
         entry = random.choice(list(self.quotes[author].keys()))
         await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
 
