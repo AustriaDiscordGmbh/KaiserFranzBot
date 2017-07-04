@@ -123,7 +123,7 @@ class Punish:
         server = ctx.message.server
         server_id = server.id
         if not (server_id in self.json and self.json[server_id]):
-            await self.bot.say("No users are currently punished.")
+            await self.bot.say("Derzeit san kane User bestraft.")
             return
 
         def getmname(mid):
@@ -134,9 +134,9 @@ class Punish:
                 else:
                     return str(member)
             else:
-                return '(member not present, id #%d)'
+                return '(User is net do, id #%d)'
 
-        headers = ['Member', 'Remaining', 'Punished by', 'Reason']
+        headers = ['User', 'Verbleibend', 'Bestraft von', 'Grund']
         table = []
         disp_table = []
         now = time.time()
@@ -165,21 +165,21 @@ class Punish:
     async def warn(self, ctx, user: discord.Member, *, reason: str=None):
         """Warns a user with boilerplate about the rules."""
         msg = ['Oida %s, ' % user.mention]
-        msg.append("Wenn net glei aufherst ")
+        msg.append("wenn du net gleich aufhörst ")
         if reason:
             msg.append("mitm %s " % reason)
-        msg.append("kreagst a Strof. Schau da noch mol de regln on.")
-        await self.bot.say(' '.join(msg))
+        msg.append("wirst bestraft. Schau da nochmal die Regeln im #vorraum an.")
+        await self.bot.say("".join(msg))
 
         entry = self.warns.get(str(user.id))
         if(entry):
-            await self.bot.say("already warned {} time(s) last time at {}!".format(entry["cnt"], entry["time"]))
+            await self.bot.say("Du bist bereits {} mal verwarnt worden. Des letzte Mal war am {}!".format(entry["cnt"], entry["time"]))
             entry["cnt"] += 1
             last_warn = time.mktime(time.strptime(entry["time"], '%Y-%m-%d %H:%M'))
             DAY = 86400
             if(time.time() - last_warn < DAY):
-                await self.bot.say("Last warning not resolved, gonna punish you!")
-                await self._punish_cmd_common(ctx, user, "30m", "multiple warnings in 24h")
+                await self.bot.say("Du hast offene Verwarnungen, jetzt wirst bestraft!")
+                await self._punish_cmd_common(ctx, user, "30m", "mehrere Verwarnungen in 24h")
         else:
             self.warns[str(user.id)] = {}
             entry = self.warns[str(user.id)]
@@ -194,15 +194,15 @@ class Punish:
         role = await self.get_role(user.server)
         sid = user.server.id
         if role and role in user.roles:
-            reason = 'Punishment manually ended early by %s. ' % ctx.message.author
+            reason = 'Bestrafung frühzeitig beendet von %s. ' % ctx.message.author
             if self.json[sid][user.id]['reason']:
                 reason += self.json[sid][user.id]['reason']
             await self._unpunish(user, reason)
-            await self.bot.say('Done.')
+            await self.bot.say('Fertig.')
         elif role:
-            await self.bot.say("That user wasn't punished.")
+            await self.bot.say("Der User is jo gar net bestraft.")
         else:
-            await self.bot.say("The punish role couldn't be found in this server.")
+            await self.bot.say("I hob ka punish Rolle aufm Server gfundn.")
 
     @commands.command(pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_messages=True)
@@ -445,9 +445,9 @@ class Punish:
             self._unpunish_data(member)
             await self.bot.remove_roles(member, role)
 
-            msg = 'Your punishment in %s has ended.' % member.server.name
+            msg = 'Deine Bestrafung in %s is vorbei.' % member.server.name
             if reason:
-                msg += "\nReason was: %s" % reason
+                msg += "\Der Grund war: %s" % reason
 
             await self.bot.send_message(member, msg)
 
@@ -484,9 +484,9 @@ class Punish:
 
         role = await self.get_role(before.server)
         if role and role in before.roles and role not in after.roles:
-            msg = 'Your punishment in %s was ended early by a moderator/admin.' % before.server.name
+            msg = 'Deine Bestrafung in %s wurde vorzeitig von einem Moderator/Admin beendet.' % before.server.name
             if self.json[sid][before.id]['reason']:
-                msg += '\nReason was: ' + self.json[sid][before.id]['reason']
+                msg += '\nDer Grund war: ' + self.json[sid][before.id]['reason']
 
             await self.bot.send_message(after, msg)
             self._unpunish_data(after)
