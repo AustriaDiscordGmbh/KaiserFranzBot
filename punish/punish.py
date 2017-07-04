@@ -29,6 +29,7 @@ DEFAULT_TIMEOUT = '30m'
 PURGE_MESSAGES = 1  # for cpunish
 PATH = 'data/punish/'
 JSON = PATH + 'settings.json'
+WARNJSON = PATH + 'warn.json'
 DEFAULT_ROLE_NAME = 'Punished'
 
 
@@ -76,11 +77,13 @@ class Punish:
     def __init__(self, bot):
         self.bot = bot
         self.json = compat_load(JSON)
+        self.warns = compat_load(WARNJSON)
         self.handles = {}
         bot.loop.create_task(self.on_load())
 
     def save(self):
         dataIO.save_json(JSON, self.json)
+        dataIO.save_json(WARNJSON, self.warns)
 
     @commands.command(pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_messages=True)
@@ -166,6 +169,16 @@ class Punish:
             msg.append("mitm %s " % reason)
         msg.append("kreagst a Strof. Schau da noch mol de regln on.")
         await self.bot.say(' '.join(msg))
+
+        entry = self.warns.get(str(user.id))
+        if(entry):
+            await self.bot.say("already warned {} time(s) last time at {}!".format(entry["cnt"], entry["timestamp"]))
+            entry["cnt"] += 1
+        else:
+            self.warns[str(user.id)] = {}
+            entry = self.warns[str(user.id)]
+            entry["cnt"] = 1
+            entry["timestamp"] = str(time.time())
 
     @commands.command(pass_context=True, no_pm=True)
     @checks.mod_or_permissions(manage_messages=True)
@@ -527,7 +540,14 @@ def check_file():
         dataIO.save_json(JSON, {})
 
 
+def check_warnfile():
+    if not dataIO.is_valid_json(WARNJSON):
+        print('Creating empty %s' % WARNJSON)
+        dataIO.save_json(WARNJSON, {})
+
+
 def setup(bot):
     check_folder()
     check_file()
+    check_warnfile()
     bot.add_cog(Punish(bot))
