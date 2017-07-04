@@ -183,7 +183,7 @@ class Punish:
             self.warns[str(user.id)] = {}
             entry = self.warns[str(user.id)]
             entry["cnt"] = 1
-            quote["time"] = time.time().strftime('%Y-%m-%d %H:%M')
+            quote["time"] = time.strftime('%Y-%m-%d %H:%M', time.time())
         self.save()
 
     @commands.command(pass_context=True, no_pm=True)
