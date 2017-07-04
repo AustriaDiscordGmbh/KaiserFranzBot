@@ -49,8 +49,8 @@ class Quote:
 
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
-        author = random.choice(self.quotes.keys)
-        entry = random.choice(self.quotes[author].keys)
+        author = random.choice(list(self.quotes.keys()))
+        entry = random.choice(list(self.quotes[author].keys()))
         await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
 
     def gen_embed(self, quote):
@@ -83,8 +83,8 @@ class Quote:
     def delete_quote(self, qid, channel):
         found = False
         for author in self.quotes.keys:
-            for q in self.quotes[author]:
-                if q.get("qid") == str(qid):
+            for q in self.quotes[author].keys():
+                if q == str(qid):
                     self.quotes.remove(q)
                     found = True
                     break
