@@ -50,7 +50,7 @@ class Quote:
     @commands.command(name="quote", pass_context=True)
     async def get_quote(self, ctx):
         if(ctx.message.mentions):
-            author = random.choice(ctx.message.mentions)
+            author = random.choice(ctx.message.mentions).id
         else:
             author = random.choice(list(self.quotes.keys()))
         entry = random.choice(list(self.quotes[author].keys()))
