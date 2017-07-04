@@ -163,8 +163,8 @@ class Punish:
         msg = ['Oida %s, ' % user.mention]
         msg.append("Wenn net glei aufherst ")
         if reason:
-            msg.append(" mitm %s " % reason)
-        msg.append(" kreagst a Strof. Schau da noch mol de regln on.")
+            msg.append("mitm %s " % reason)
+        msg.append("kreagst a Strof. Schau da noch mol de regln on.")
         await self.bot.say(' '.join(msg))
 
     @commands.command(pass_context=True, no_pm=True)
