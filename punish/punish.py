@@ -195,7 +195,7 @@ class Punish:
             
             table.append((name, cnt, timestamp, active))
 
-        for name, cnt, ts, active in sorted(table, key=lambda x: x[1]):
+        for name, cnt, ts, active in sorted(table, key=lambda x: x[1], reverse=True):
             disp_table.append((name, cnt, ts, active))
 
         for page in pagify(tabulate(disp_table, headers)):
