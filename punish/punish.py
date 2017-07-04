@@ -175,7 +175,7 @@ class Punish:
         if(entry):
             await self.bot.say("already warned {} time(s) last time at {}!".format(entry["cnt"], entry["time"]))
             entry["cnt"] += 1
-            last_warn = time.strptime(entry[time], '%Y-%m-%d %H:%M')
+            last_warn = time.strptime(entry["time"], '%Y-%m-%d %H:%M')
             DAY = 86400
             if(time.time() - last_warn > DAY):
                 await self.bot.say("Last warning not resolved, gonna punish you!")
