@@ -76,6 +76,8 @@ class Quote:
             for q in self.quotes[author].keys():
                 if q == str(qid):
                     self.quotes[author].pop(q)
+                    if(not self.quotes[author].keys()):
+                        self.quotes.pop(author)
                     found = True
                     break
             if(found):
