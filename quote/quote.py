@@ -104,7 +104,7 @@ class Quote:
 
     def quote_from_message(self, message, user):
         quote = {}
-        quote["author"] = message.author.name
+        quote["author"] = message.author.display_name
         quote["aid"] = message.author.id
         quote["adder"] = user.name
         quote["content"] = message.clean_content
