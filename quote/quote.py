@@ -71,7 +71,7 @@ class Quote:
         for author in self.quotes.keys():
             for q in self.quotes[author].keys():
                 if q == str(qid):
-                    self.quotes.remove(q)
+                    self.quotes.pop(q)
                     found = True
                     break
             if(found):
