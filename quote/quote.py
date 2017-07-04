@@ -28,6 +28,9 @@ class Quote:
 
     async def add_quote(self, message, user):
         quote = self.quote_from_message(message, user)
+        if(!quote.content)
+            self.bot.say("There is no content")
+            return
         self.quotes.append(quote)
         self.store_quotes()
         await self.send_quote_to_channel(quote, message.channel)
