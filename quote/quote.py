@@ -25,6 +25,8 @@ class Quote:
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "üíæ" and reaction.count == 1:
             await self.add_quote(reaction.message, user)
+        if reaction.emoji == "Ì†ΩÌ∑ëÔ∏è" and reaction.count == 1:
+            await self.votedel_quote(reaction.message)
 
     async def add_quote(self, message, user):
         quote = self.quote_from_message(message, user)
@@ -42,6 +44,14 @@ class Quote:
         self.quotes[aid][qid] = quote
         self.store_quotes()
         await self.send_quote_to_channel(quote, message.channel)
+
+
+    async def votedel_quote(self, message):
+        if(not message.embeds):
+            return
+        print(message.embeds[0])
+        await self.bot.send_message(message.channel, "Qute will be deleted!")
+        
 
     async def send_quote_to_channel(self, quote, channel):
         em = self.gen_embed(quote, channel)
