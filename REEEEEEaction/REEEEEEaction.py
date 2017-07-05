@@ -9,13 +9,13 @@ from cogs.utils import checks
 class ReeeAction:
     def __init__(self, bot):
         self.bot = bot
-        self.channel = "#shitpostingaeiou"
 
     async def on_message(self, message):
         if(not "reee" in message.content.lower()):
             return
-        if(message.channel != self.channel):
-            self.bot.say(self.channel)
+        shit = discord.utils.find(lambda m: str(c.name) == "shitpostingaeiou", message.server.channels)
+        if(shit != message.channel):
+            self.bot.say(shit.mention)
 
 def setup(bot):
     bot.add_cog(ReeeAction(bot))
