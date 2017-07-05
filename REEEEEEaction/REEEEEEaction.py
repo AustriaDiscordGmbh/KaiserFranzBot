@@ -13,11 +13,11 @@ class ReeeAction:
     async def on_message(self, message):
         if(not "reee" in message.content.lower()):
             return
-        if(not message.server)
+        if(not message.server):
             return
         shit = discord.utils.find(lambda m: str(m.name) == "shitpostingaeiou", message.server.channels)
         if(shit != message.channel):
-            self.bot.say(shit.mention)
+            await self.bot.send_message(message.channel, shit.mention)
 
 def setup(bot):
     bot.add_cog(ReeeAction(bot))
