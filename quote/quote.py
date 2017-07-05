@@ -25,7 +25,7 @@ class Quote:
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾" and reaction.count == 1:
             await self.add_quote(reaction.message, user)
-        if reaction.emoji == u"\U0001F5D1" and reaction.count == 1:
+        if reaction.emoji == u"\U0001F5D1" and reaction.count == 5:
             await self.votedel_quote(reaction.message)
 
     async def add_quote(self, message, user):
@@ -49,8 +49,16 @@ class Quote:
     async def votedel_quote(self, message):
         if(not message.embeds):
             return
-        print(message.embeds[0])
-        await self.bot.send_message(message.channel, "Qute will be deleted!")
+        footer = message.embeds[0].get("footer")
+        if(not footer or not footer.get("text")):
+            return
+        if(not (len(footer["text"].split()) > 1)):
+            return
+        qid = footer["text"].split()[1]
+        if(not qid.isdigit()):
+            return
+
+        await self.del_quote_by_id(qid, message.channel)
         
 
     async def send_quote_to_channel(self, quote, channel):
@@ -81,6 +89,9 @@ class Quote:
         message = ctx.message
         channel = message.channel
         qid = int(message.clean_content.replace("!delquote ", "", 1))
+        await self.del_quote_by_id(qid, channel)
+
+    async def del_quote_by_id(self, qid, channel):
         for author in self.quotes.keys():
             for q in self.quotes[author].keys():
                 if q == str(qid):
