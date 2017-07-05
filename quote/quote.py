@@ -25,7 +25,7 @@ class Quote:
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "ğŸ’¾" and reaction.count == 1:
             await self.add_quote(reaction.message, user)
-        if reaction.emoji == "í ½í·‘ï¸" and reaction.count == 1:
+        if reaction.emoji == u"\U0001F5D1" and reaction.count == 1:
             await self.votedel_quote(reaction.message)
 
     async def add_quote(self, message, user):
