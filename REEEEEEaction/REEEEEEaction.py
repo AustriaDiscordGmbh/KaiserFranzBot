@@ -12,9 +12,9 @@ class ReeeAction:
         self.channel = "#shitpostingaeiou"
 
     async def on_message(self, message):
-        if(not "reee" in message.content.to_lower())
+        if(not "reee" in message.content.lower()):
             return
-        if(message.channel != self.channel)
+        if(message.channel != self.channel):
             self.bot.say(self.channel)
 
 def setup(bot):
