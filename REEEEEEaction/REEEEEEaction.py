@@ -15,6 +15,8 @@ class ReeeAction:
             return
         if(not message.server):
             return
+        if(message.author.bot):
+            return
         shit = discord.utils.find(lambda m: str(m.name) == "shitpostingaeiou", message.server.channels)
         if(shit != message.channel):
             await self.bot.send_message(message.channel, shit.mention)
