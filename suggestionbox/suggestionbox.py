@@ -105,6 +105,8 @@ class SuggestionBox:
     async def send_suggest(self, message, server):
         author = message.author
         suggestion = message.clean_content.replace("!suggest ", "", 1)
+        if(suggestion == "!suggest" or not suggestion)
+            return await self.bot.say("A leerer vorschlag bringt kam wos")
         timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
         avatar = author.avatar_url if author.avatar \
             else author.default_avatar_url
