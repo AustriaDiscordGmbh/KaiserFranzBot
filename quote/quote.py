@@ -118,12 +118,14 @@ class Quote:
         avatar = quote.get("avatar")
         adder = quote.get("adder")
         quote_id = quote.get("qid")
-        if(not quote.get("image")):
+        if(quote.get("content")):
             em = discord.Embed(description=content,
                                color=discord.Color.purple())
         else:
             em = discord.Embed(color=discord.Color.purple())
+        if(quote.get("image")):
             em.set_image(url=quote["image"])
+
         em.set_author(name='Zitat von {}'.format(author),
                       icon_url=avatar)
         em.set_footer(text='Zitat {} hinzugfügt am {} UTC von {}'.format(quote_id, timestamp, adder))
