@@ -29,10 +29,15 @@ class Quote:
             await self.votedel_quote(reaction.message)
 
     async def add_quote(self, message, user):
-        quote = self.quote_from_message(message, user)
-        if(not quote["content"]):
-            await self.bot.send_message(message.channel, "Heast, leere Zitate gehn net!")
-            return
+        image = False
+        if(not message.clean_content):
+            if(message.attachments and message.attachments[0].get("width")):
+                image = True
+            else:
+                await self.bot.send_message(message.channel, "Heast, leere Zitate gehn net!")
+                return
+
+        quote = self.quote_from_message(message, user, image)
         aid = quote["aid"]
         qid = quote["qid"]
         if(not self.quotes.get(aid)):
@@ -59,7 +64,6 @@ class Quote:
             return
 
         await self.del_quote_by_id(qid, message.channel)
-        
 
     async def send_quote_to_channel(self, quote, channel):
         em = self.gen_embed(quote, channel)
@@ -114,14 +118,18 @@ class Quote:
         avatar = quote.get("avatar")
         adder = quote.get("adder")
         quote_id = quote.get("qid")
-        em = discord.Embed(description=content,
-                           color=discord.Color.purple())
+        if(not quote.get("image")):
+            em = discord.Embed(description=content,
+                               color=discord.Color.purple())
+        else:
+            em = discord.Embed(color=discord.Color.purple())
+            em.set_image(url=quote["image"])
         em.set_author(name='Zitat von {}'.format(author),
                       icon_url=avatar)
         em.set_footer(text='Zitat {} hinzugfügt am {} UTC von {}'.format(quote_id, timestamp, adder))
         return em
 
-    def quote_from_message(self, message, user):
+    def quote_from_message(self, message, user, image=False):
         quote = {}
         quote["author"] = message.author.display_name
         quote["aid"] = message.author.id
@@ -132,6 +140,8 @@ class Quote:
         author = message.author
         quote["avatar"] = author.avatar_url if author.avatar \
             else author.default_avatar_url
+        if(image):
+            quote["image"] = message.attachments[0]["url"]
         return quote
 
     def store_quotes(self):
