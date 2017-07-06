@@ -97,7 +97,7 @@ class Karma:
         body = sorted(zip(names, scores), key=lambda tup: tup[1],
                       reverse=True)
 
-        for page in pagify(tabulate.tabulate(disp_table, headers)):
+        for page in pagify(tabulate.tabulate(body, headers)):
             await self.bot.say(box(page))
 
     @commands.group(pass_context=True)
