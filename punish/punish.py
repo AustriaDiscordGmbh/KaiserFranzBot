@@ -217,7 +217,7 @@ class Punish:
             DAY = 86400
             if(time.time() - last_warn < DAY):
                 await self.bot.say("Du hast offene Verwarnungen, jetzt wirst bestraft!")
-                await self._punish_cmd_common(ctx, user, "30m", "mehrere Verwarnungen in 24h")
+                await self._punish_cmd_common(ctx, user, "2h", "mehrere Verwarnungen in 24h")
                 entry["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M')
                 return 
         else:
@@ -225,7 +225,7 @@ class Punish:
             entry = self.warns[str(user.id)]
             entry["cnt"] = 1
         entry["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M')
-        await self.bot.send_message(user, "Du wurdest gewarnt! Bei der nächsten Warnung wirst du 30 Minuten gemuted. Diese Warnung bleibt 24 Stunden aufrecht!")
+        await self.bot.send_message(user, "Du wurdest gewarnt! Bei der nächsten Warnung wirst du 2 Stunden gemuted. Diese Warnung bleibt 24 Stunden aufrecht!")
         self.save()
 
     @commands.command(pass_context=True, no_pm=True)
