@@ -71,7 +71,7 @@ class Karma:
         if self.scores.get(member.id, 0) != 0:
             member_dict = self.scores[member.id]
             await self.bot.say(member.name + " hat " +
-                               str(member_dict["score"]) + " points!")
+                               str(member_dict["score"]) + " Punkte!")
             reasons = self._fmt_reasons(member_dict.get("reasons", []))
             if reasons:
                 await self.bot.send_message(ctx.message.author, reasons)
