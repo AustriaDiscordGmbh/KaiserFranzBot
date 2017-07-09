@@ -70,13 +70,13 @@ class Karma:
         member = ctx.message.mentions[0]
         if self.scores.get(member.id, 0) != 0:
             member_dict = self.scores[member.id]
-            await self.bot.say(member.name + " has " +
+            await self.bot.say(member.name + " hat " +
                                str(member_dict["score"]) + " points!")
             reasons = self._fmt_reasons(member_dict.get("reasons", []))
             if reasons:
                 await self.bot.send_message(ctx.message.author, reasons)
         else:
-            await self.bot.say(member.name + " has no karma!")
+            await self.bot.say(member.name + " hat kein karma!")
 
     @commands.command(pass_context=True)
     async def karmaboard(self, ctx):
@@ -141,8 +141,8 @@ class Karma:
                 if "++" in first_word.lower() or "--" in first_word.lower():
                     if member == user:
                         await self.bot.send_message(message.channel,
-                                                    "You can't modify your own"
-                                                    " rep, jackass.")
+                                                    "Du kannst dir nicht selber Karma geben"
+                                                    ",du Schummler.")
                         return
                 if "++" in first_word.lower():
                     self._process_scores(member, 1)
