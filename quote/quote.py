@@ -25,8 +25,11 @@ class Quote:
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == "💾" and reaction.count == 1:
             await self.add_quote(reaction.message, user)
-        if reaction.emoji == u"\U0001F5D1" and reaction.count == 5:
-            await self.votedel_quote(reaction.message)
+        if reaction.emoji == u"\U0001F5D1": 
+            if reaction.count == 5:
+                await self.votedel_quote(reaction.message)
+            if user.server_permissions.manage_roles():
+                await self.votedel_quote(reaction.message)
 
     async def add_quote(self, message, user):
         image = False
