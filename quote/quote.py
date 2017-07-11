@@ -28,7 +28,7 @@ class Quote:
         if reaction.emoji == u"\U0001F5D1": 
             if reaction.count == 5:
                 await self.votedel_quote(reaction.message)
-            if user.server_permissions.manage_roles():
+            elif user.server_permissions.manage_roles:
                 await self.votedel_quote(reaction.message)
 
     async def add_quote(self, message, user):
