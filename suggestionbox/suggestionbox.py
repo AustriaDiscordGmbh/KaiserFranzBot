@@ -113,7 +113,7 @@ class SuggestionBox:
 
         em = discord.Embed(description=suggestion,
                            color=discord.Color.purple())
-        em.set_author(name='Vorschlag von {}'.format(author.name),
+        em.set_author(name='Vorschlag von {}'.format(author.display_name),
                       icon_url=avatar)
         em.set_footer(text='Vorschlag eingreicht um {} UTC'.format(timestamp))
 
