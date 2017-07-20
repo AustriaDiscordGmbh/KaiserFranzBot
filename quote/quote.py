@@ -77,13 +77,33 @@ class Quote:
         if(not self.quotes):
             await self.bot.send_message(ctx.message.channel, "I hob no kane Zitate gspeichert.")
             return
+
+        authorId = ctx.message.clean_content.replace("!quote", "", 1).strip()
+
+        print(authorId)
+
         if(ctx.message.mentions):
             author = random.choice(ctx.message.mentions).id
+
             if(not self.quotes.get(author)):
                 await self.bot.send_message(ctx.message.channel, "Der hot no nix deppates gsogt.")
                 return
+        elif authorId != "":
+            if authorId in self.quotes:
+                author = authorId
+            else:
+                author = None
+                for userId in self.quotes:
+                    if authorId.lower() == list(self.quotes[userId].values())[0]["author"].lower():
+                        author = userId
+                        break
+                
+                if author is None:
+                    await self.bot.send_message(ctx.message.channel, "I hob niemand mit dem Namen gfundn.")
+                    return
         else:
             author = random.choice(list(self.quotes.keys()))
+
         if(self.quotes[author].keys()):
             entry = random.choice(list(self.quotes[author].keys()))
             await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
