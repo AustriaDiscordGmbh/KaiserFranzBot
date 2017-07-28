@@ -4,6 +4,7 @@ import discord
 import json
 import random
 import urllib
+from discord.ext import commands
 
 
 class RandBeer:
