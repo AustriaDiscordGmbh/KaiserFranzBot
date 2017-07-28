@@ -3,7 +3,7 @@ import asyncio  # noqa: F401
 import discord
 import json
 import random
-import urllib2
+import urllib
 
 
 class RandBeer:
@@ -13,7 +13,7 @@ class RandBeer:
     @commands.command(name="beer", pass_context=True)
     async def post_beer(self, ctx):
         message = ctx.message
-        f = urllib2.urlopen('http://ajax.googleapis.com/ajax/services/search/images?q=beer&v=1.0&rsz=large&start=1')
+        f = urllib.urlopen('http://ajax.googleapis.com/ajax/services/search/images?q=beer&v=1.0&rsz=large&start=1')
         data = json.load(f)
         f.close()
         results = data['responseData']['results']
