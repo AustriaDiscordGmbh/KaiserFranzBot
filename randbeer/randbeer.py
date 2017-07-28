@@ -22,4 +22,4 @@ class RandBeer:
         await self.bot.send_message(message.channel, url)
 
 def setup(bot):
-    bot.add_cog(ReeeAction(bot))
+    bot.add_cog(RandBeer(bot))
