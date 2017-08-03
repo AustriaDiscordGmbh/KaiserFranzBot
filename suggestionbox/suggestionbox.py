@@ -103,18 +103,13 @@ class SuggestionBox:
 
 
     async def send_suggest(self, message, server):
-        author = message.author
         suggestion = message.clean_content.replace("!suggest ", "", 1)
         if(suggestion == "!suggest" or not suggestion):
             return await self.bot.say("A leerer vorschlag bringt kam wos")
         timestamp = message.timestamp.strftime('%Y-%m-%d %H:%M')
-        avatar = author.avatar_url if author.avatar \
-            else author.default_avatar_url
 
         em = discord.Embed(description=suggestion,
                            color=discord.Color.purple())
-        em.set_author(name='Vorschlag von {}'.format(author.display_name),
-                      icon_url=avatar)
         em.set_footer(text='Vorschlag eingreicht um {} UTC'.format(timestamp))
 
         for output in self.settings[server.id]['output']:
