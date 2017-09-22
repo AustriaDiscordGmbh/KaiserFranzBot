@@ -24,9 +24,9 @@ class RedditLinker:
         linkMessage = ""
         for match in matches:
             linkMessage += "https://reddit.com/r/" + match[0] + "\n"
-        
+
         if linkMessage != "":
-            await self.bot.send_message(message.channel)
+            await self.bot.send_message(linkMessage)
 
 
 
