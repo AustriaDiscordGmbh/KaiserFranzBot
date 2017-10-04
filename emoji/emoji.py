@@ -59,7 +59,7 @@ class Emoji:
         if (not message.server):
             return
 
-        emoji_names = extract_emojis(msg, message.server.emojis)
+        emoji_names = extract_emojis(message.content, message.server.emojis)
 
         if emoji_names:
             try:
@@ -105,9 +105,6 @@ class Emoji:
                 criteria[c] = x[0]
             elif l == 0:
                 criteria[c] = None
-
-        if not reduce(lambda x, y: x or y, criteria.values()):
-            return await self.bot.say("Error: nothing specified")
 
         # build WHERE clauses for each given criterium,
         # prepare embed header
@@ -158,6 +155,10 @@ class Emoji:
 
                 em.add_field(name="Top " + pretty_columns[c] + em_header_target, value=em_values, inline=False)
 
+        if not em.fields:
+            tmp_query = query_select_cols.format("emoji", "emoji") + query
+            results = self.dbc.execute(tmp_query, query_data).fetchone()
+            em.add_field(name="Amount", value=results[1])
 
         await self.bot.say(embed=em)
 
