@@ -110,6 +110,13 @@ class Emoji:
         criteria["channel_id"] = ctx.message.channel_mentions
         criteria["emoji"] = extract_emojis(ctx.message.content, ctx.message.server.emojis)
 
+        # remove channel and user mentions
+        rest = re.sub("<[@#][0-9]+>", " ", ctx.message.content[7:])
+        # remove emojis
+        rest = reduce(lambda s, e: s.replace(e, " "), criteria["emoji"], rest)
+
+        debug = "debug" in rest
+
         # input validation
         for c, x in criteria.items():
             l = len(x)
@@ -142,6 +149,8 @@ class Emoji:
                 query += " AND %s = ?" % c
 
         em = discord.Embed()
+        if debug:
+            em.description = str(criteria)
 
         # query database, populate embed
         for c, x in criteria.items():
