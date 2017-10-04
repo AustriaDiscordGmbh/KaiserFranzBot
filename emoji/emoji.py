@@ -16,7 +16,7 @@ log = logging.getLogger("red.emoji")
 def extract_emojis(txt, emoji_list):
     """
     Extract all the emoji from a string, returning a tuple of strings
-    emoji_list: custom per-server emojis (Server.emojis)
+    emoji_list: custom per-server emojis (discord.Server.emojis)
     """
     # extract normal unicode emoji
     emojis = list(c for c in txt if c in emoji.UNICODE_EMOJI)
@@ -79,11 +79,24 @@ class Emoji:
                 self.dbc.executemany("INSERT INTO messages (server_id, channel_id, user_id, message_id, date, emoji) VALUES (?,?,?,?,?,?)", queries)
                 self.db.commit()
             except Exception:
-                print(traceback.format_exc())
+                log.error(traceback.format_exc())
 
     @commands.command(pass_context=True)
     async def emoji(self, ctx):
-        """list rankings for emojis/users/channels. Supply zero or one of each mentions, channels, and/or emojis"""
+        """List rankings for emojis/users/channels
+        Supply zero or one of each (user, channel, emoji)"""
+
+        # query format
+        # example: emoji is given
+        #   SELECT
+        #       user_id,
+        #       COUNT(user_id)
+        #   FROM messages WHERE
+        #       server_id = ?
+        #       AND emoji = ?
+        #   GROUP BY user_id
+        #   ODER BY COUNT(user_id)
+        # same query will be repeated with channel_id instead of user_id
 
         pretty_columns = {
             "channel_id": "channels",
@@ -91,6 +104,7 @@ class Emoji:
             "emoji": "emojis"
         }
 
+        # dict of lists at first, then reduced to dict of string/None
         criteria = {}
         criteria["user_id"] = ctx.message.mentions
         criteria["channel_id"] = ctx.message.channel_mentions
@@ -156,8 +170,8 @@ class Emoji:
                 em.add_field(name="Top " + pretty_columns[c] + em_header_target, value=em_values, inline=False)
 
         if not em.fields:
-            tmp_query = query_select_cols.format("emoji", "emoji") + query
-            results = self.dbc.execute(tmp_query, query_data).fetchone()
+            # doesn't matter what we SELECT, we're counting everything
+            results = self.dbc.execute(query_select_cols.format("emoji", "emoji") + query, query_data).fetchone()
             em.add_field(name="Amount", value=results[1])
 
         await self.bot.say(embed=em)
