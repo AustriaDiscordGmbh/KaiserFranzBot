@@ -1,0 +1,5 @@
+{
+	"AUTHOR": "xiretza",
+	"NAME": "Emoji",
+	"REQUIREMENTS": ["emoji", "sqlite3"]
+}
