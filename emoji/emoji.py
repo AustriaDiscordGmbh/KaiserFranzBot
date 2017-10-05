@@ -164,6 +164,9 @@ class Emoji:
                 log.debug("result:")
                 log.debug(results)
 
+                if not results:
+                    return await self.bot.say("No data available.")
+
                 em_values = ""
                 for i in range(0,3):
                     if len(results) > i:
