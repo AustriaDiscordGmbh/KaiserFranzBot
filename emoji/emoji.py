@@ -87,15 +87,16 @@ class Emoji:
         Supply zero or one of each (user, channel, emoji)"""
 
         # query format
-        # example: emoji is given
+        # example: 3 emoji are given
         #   SELECT
         #       user_id,
         #       COUNT(user_id)
         #   FROM messages WHERE
         #       server_id = ?
-        #       AND emoji = ?
+        #       AND emoji IN (?, ?, ?)
         #   GROUP BY user_id
         #   ODER BY COUNT(user_id)
+        #   LIMIT 3
         # same query will be repeated with channel_id instead of user_id
 
         pretty_columns = {
@@ -108,6 +109,12 @@ class Emoji:
         criteria = {}
         criteria["user_id"] = ctx.message.mentions
         criteria["channel_id"] = ctx.message.channel_mentions
+        for role in ctx.message.role_mentions:
+            criteria["user_id"] += filter(
+                lambda y: role in y.roles and y not in criteria["user_id"],
+                ctx.message.server.members
+            )
+
         criteria["emoji"] = extract_emojis(ctx.message.content, ctx.message.server.emojis)
 
         # remove channel and user mentions
@@ -119,12 +126,7 @@ class Emoji:
 
         # input validation
         for c, x in criteria.items():
-            l = len(x)
-            if l > 1:
-                return await self.bot.say("Error: %s specified more than once" % pretty_columns[c])
-            if l == 1:
-                criteria[c] = x[0]
-            elif l == 0:
+            if len(x) == 0:
                 criteria[c] = None
 
         # build WHERE clauses for each given criterium,
@@ -134,19 +136,14 @@ class Emoji:
         query_data = [ctx.message.server.id]
 
         em_header_target = ""
-        for c, x in criteria.items():
-            if x:
-                if c == "user_id":
-                    em_header_target += " for @%s" % x.name
-                    query_data.append(x.id)
-                elif c == "channel_id":
-                    em_header_target += " in #%s" % x.name
-                    query_data.append(x.id)
+        for c, v in criteria.items():
+            if v:
+                if c in ("user_id", "channel_id"):
+                    query_data += map(lambda x: x.id, v)
                 elif c == "emoji":
-                    em_header_target += " with %s" % x
-                    query_data.append(x)
+                    query_data += v
 
-                query += " AND %s = ?" % c
+                query += " AND %s IN (%s)" % (c, ",".join(list("?" * len(v))))
 
         em = discord.Embed()
         if debug:
@@ -155,7 +152,7 @@ class Emoji:
         # query database, populate embed
         for c, x in criteria.items():
             if not x:
-                tmp_query = query_select_cols.format(c, c) + query + " GROUP BY %s ORDER BY COUNT(%s) DESC" % (c, c)
+                tmp_query = query_select_cols.format(c, c) + query + " GROUP BY %s ORDER BY COUNT(%s) DESC LIMIT 3" % (c, c)
                 log.debug("query:")
                 log.debug(tmp_query)
                 log.debug(query_data)
@@ -168,16 +165,15 @@ class Emoji:
                     return await self.bot.say("No data available.")
 
                 em_values = ""
-                for i in range(0,3):
-                    if len(results) > i:
-                        server = ctx.message.server
-                        result_id = results[i][0]
-                        if c == "user_id":
-                            result_id = discord.utils.find(lambda v: v.id == result_id, server.members).mention
-                        elif c == "channel_id":
-                            result_id = discord.utils.find(lambda v: v.id == result_id, server.channels).mention
+                for i, row in enumerate(results):
+                    server = ctx.message.server
+                    result_id = row[0]
+                    if c == "user_id":
+                        result_id = discord.utils.find(lambda v: v.id == result_id, server.members).mention
+                    elif c == "channel_id":
+                        result_id = discord.utils.find(lambda v: v.id == result_id, server.channels).mention
 
-                        em_values += "%d. %s (%dx)\n" % (i+1, result_id, results[i][1])
+                    em_values += "%d. %s (%dx)\n" % (i+1, result_id, row[1])
 
                 em.add_field(name="Top " + pretty_columns[c] + em_header_target, value=em_values, inline=False)
 
