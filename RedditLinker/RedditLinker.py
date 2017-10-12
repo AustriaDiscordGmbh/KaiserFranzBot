@@ -9,6 +9,7 @@ import re
 
 class RedditLinker:
     subRegex = re.compile(r"(^|\s)[\/]?r\/([a-zA-Z0-9_]+)(?=($|\s))")
+    subBlacklist = ["austria", "de", "aeiou"]
 
     def __init__(self, bot):
         self.bot = bot
@@ -23,7 +24,8 @@ class RedditLinker:
 
         linkMessage = ""
         for match in matches:
-            linkMessage += "https://reddit.com/r/" + match[1] + "\n"
+        	if match[1].lower() not in self.subBlacklist:
+            	linkMessage += "https://reddit.com/r/" + match[1] + "\n"
 
         if linkMessage != "":
             await self.bot.send_message(message.channel, linkMessage)
