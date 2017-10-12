@@ -24,8 +24,8 @@ class RedditLinker:
 
         linkMessage = ""
         for match in matches:
-        	if match[1].lower() not in self.subBlacklist:
-            	linkMessage += "https://reddit.com/r/" + match[1] + "\n"
+            if match[1].lower() not in self.subBlacklist:
+                linkMessage += "https://reddit.com/r/" + match[1] + "\n"
 
         if linkMessage != "":
             await self.bot.send_message(message.channel, linkMessage)
