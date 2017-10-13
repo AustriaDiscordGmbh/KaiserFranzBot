@@ -9,7 +9,7 @@ import re
 
 class RedditLinker:
     subRegex = re.compile(r"(^|\s)[\/]?r\/([a-zA-Z0-9_]+)(?=($|\s))")
-    subBlacklist = ["austria", "de", "aeiou"]
+    subBlacklist = ["austria", "de", "aeiou", "europe"]
 
     def __init__(self, bot):
         self.bot = bot
