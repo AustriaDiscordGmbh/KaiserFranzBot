@@ -80,7 +80,7 @@ class Quote:
 
         authorId = ctx.message.clean_content.replace("!quote", "", 1).strip()
 
-        print(authorId)
+        #print(authorId)
 
         if(ctx.message.mentions):
             author = random.choice(ctx.message.mentions).id
@@ -95,6 +95,7 @@ class Quote:
                 # search quotes for passed id
                 for userId in self.quotes:
                     for quote in self.quotes[userId].values():
+                        print(quote)
                         if quote.qid == authorId:
                             await self.send_quote_to_channel(quote, ctx.message.channel)
                             return
