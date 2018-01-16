@@ -92,6 +92,13 @@ class Quote:
             if authorId in self.quotes:
                 author = authorId
             else:
+                # search quotes for passed id
+                for userId in self.quotes:
+                    for quote in self.quotes[userId].values():
+                        if quote.qid == authorId:
+                            await self.send_quote_to_channel(quote, ctx.message.channel)
+                            return
+
                 author = None
                 for userId in self.quotes:
                     if authorId.lower() == list(self.quotes[userId].values())[0]["author"].lower():
