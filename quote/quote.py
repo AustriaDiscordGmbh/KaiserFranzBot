@@ -95,8 +95,7 @@ class Quote:
                 # search quotes for passed id
                 for userId in self.quotes:
                     for quote in self.quotes[userId].values():
-                        print(quote)
-                        if quote.qid == authorId:
+                        if quote[qid] == authorId:
                             await self.send_quote_to_channel(quote, ctx.message.channel)
                             return
 
