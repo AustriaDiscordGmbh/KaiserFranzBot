@@ -15,20 +15,14 @@ class RedditLinker:
         self.bot = bot
 
     async def on_message(self, message):
-        if(not message.server):
-            return
-        if(message.author.bot):
+        if(not message.server or message.author.bot):
             return
         
         matches = self.subRegex.findall(message.content)
 
-        linkMessage = ""
-        for match in matches:
-            if match[1].lower() not in self.subBlacklist:
-                linkMessage += "https://reddit.com/r/" + match[1] + "\n"
-
-        if linkMessage != "":
-            await self.bot.send_message(message.channel, linkMessage)
+        links = ["https://reddit.com/r/" + match[1] for match in matches if match[1].lower() not in [x.lower() for x in self.subBlacklist]]
+        if len(links):
+            await self.bot.send_message(message.channel, "\n".join(links))
 
 
 
