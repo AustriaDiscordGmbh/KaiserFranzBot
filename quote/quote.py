@@ -1,185 +1,240 @@
-import os
-import asyncio  # noqa: F401
+# Partly stolen from https://github.com/Painezor/Toonbot/blob/master/ext/quotes.py
 import discord
-import logging
-from discord.ext import commands
-from cogs.utils.dataIO import dataIO
-from cogs.utils import checks
-import json
-import random
+import sqlite3
+import asyncio
+from redbot.core import commands
+from datetime import datetime
 
-class Quote:
-    """Simple quote cog"""
 
-    __author__ = "pitikay"
-    __version__ = "0.1"
-
+class Quote(commands.Cog):
+    """My quote"""
     def __init__(self, bot):
         self.bot = bot
-        try:
-            with open('quotes.json', 'r') as f:
-                self.quotes = json.load(f)
-        except FileNotFoundError:
-            self.quotes = {}
+        self.conn = sqlite3.connect('quotes.db')
+        self.c = self.conn.cursor()
 
-    async def on_reaction_add(self, reaction, user):
-        if reaction.emoji == "💾" and reaction.count == 1:
-            await self.add_quote(reaction.message, user)
-        if reaction.emoji == u"\U0001F5D1": 
-            if reaction.count == 5:
-                await self.votedel_quote(reaction.message)
-            elif user.server_permissions.manage_roles:
-                await self.votedel_quote(reaction.message)
+    def __unload(self):
+        self.conn.close()
 
-    async def add_quote(self, message, user):
-        image = False
-        if(not message.clean_content):
-            if(message.attachments and message.attachments[0].get("width")):
-                image = True
-            else:
-                await self.bot.send_message(message.channel, "Heast, leere Zitate gehn net!")
+    def __reload(self):
+        self.conn.close()
+        self.conn = sqlite3.connect('quotes.db')
+        self.c = self.conn.cursor()
+
+    async def make_embed(self, data):
+        # [id,author,content,channelid,timestamp,submitterid]
+        author = discord.utils.get(self.bot.get_all_members(), id=data[1])
+        channel = self.bot.get_channel(data[3])
+        submitter = discord.utils.get(self.bot.get_all_members(), id=data[5])
+        submittern = submitter.display_name if submitter else "deleted user"
+        submitteravi = submitter.avatar_url if submitter else ""
+
+        e = discord.Embed(color=0x7289DA, description=data[2])
+        e.set_author(name=f"Quote #{data[0]}",
+                     icon_url="https://discordapp.com/assets/2c21aeda16de354ba5334551a883b481.png")
+
+        if author:
+            e.set_thumbnail(url=author.avatar_url)
+            e.title = f"{author.display_name} in #{channel}"
+        else:
+            e.set_thumbnail(url="https://discordapp.com/assets/2c21aeda16de354ba5334551a883b481.png")
+            e.title = f"Deleted user in #{channel}"
+
+        e.set_footer(text=f"Added by {submittern}", icon_url=submitteravi)
+        e.timestamp = datetime.strptime(data[4], "%Y-%m-%d %H:%M:%S.%f")
+        return e
+
+    @commands.group(invoke_without_command=True, aliases=["quotes"])
+    async def quote(self, ctx, *, member: discord.Member = None):
+        """ Show random quote (optionally from specific user). Use ".help quote" to view subcommands. """
+        if ctx.invoked_subcommand is None:
+            if member:  # If member provided, show random quote from member.
+                self.c.execute(f"SELECT rowid, * FROM quotes WHERE userid = {member.id} ORDER BY RANDOM()")
+                x = self.c.fetchone()
+                if not x:
+                    return await ctx.send(f"No quotes found from user {member.mention}")
+            else:  # Display a random quote.
+                self.c.execute("SELECT rowid, * FROM quotes ORDER BY RANDOM()")
+                x = self.c.fetchone()
+                if not x:
+                    return await ctx.send("Quote DB appears to be empty.")
+                else:
+                    await ctx.send("Displaying random quote:")
+        e = await self.make_embed(x)
+        await ctx.send(embed=e)
+
+    @quote.command()
+    async def search(self, ctx, *, qry):
+        with ctx.typing():
+            m = await ctx.send('Searching...')
+            localconn = sqlite3.connect('quotes.db')
+            lc = localconn.cursor()
+            lc.execute(f"SELECT rowid, * FROM quotes WHERE quotetext LIKE (?)", (f'%{qry}%',))
+            x = lc.fetchall()
+            lc.close()
+            localconn.close()
+
+        numquotes = len(x)
+        embeds = []
+        for i in x:
+            y = await self.make_embed(i)
+            embeds.append(y)
+
+        # Do we need to paginate?
+        if numquotes == 0:
+            return await m.edit(content=f'No quotes matching {qry} found.')
+
+        if numquotes == 1:
+            return await m.edit(content=f"{ctx.author.mention}: 1 quote found", embed=embeds[0])
+        else:
+            await m.edit(content=f"{ctx.author.mention}: {numquotes} quotes found", embed=embeds[0])
+        # Paginate then.
+        page = 0
+        if numquotes > 2:
+            await m.add_reaction("⏮")  # first
+        if numquotes > 1:
+            await m.add_reaction("◀")  # prev
+        if numquotes > 1:
+            await m.add_reaction("▶")  # next
+        if numquotes > 2:
+            await m.add_reaction("⏭")  # last
+
+        def check(reaction, user):
+            if reaction.message.id == m.id and user == ctx.author:
+                e = str(reaction.emoji)
+                return e.startswith(('⏮', '◀', '▶', '⏭'))
+
+        # Reaction Logic Loop.
+        while True:
+            try:
+                res = await self.bot.wait_for("reaction_add", check=check, timeout=30)
+            except asyncio.TimeoutError:
+                await m.clear_reactions()
+                break
+            res = res[0]
+            if res.emoji == "⏮":  # first
+                page = 1
+                await m.remove_reaction("⏮", ctx.message.author)
+            elif res.emoji == "◀":  # prev
+                await m.remove_reaction("◀", ctx.message.author)
+                if page > 1:
+                    page = page - 1
+            elif res.emoji == "▶":  # next
+                await m.remove_reaction("▶", ctx.message.author)
+                if page < numquotes:
+                    page = page + 1
+            elif res.emoji == "⏭":  # last
+                page = numquotes
+                await m.remove_reaction("⏭", ctx.message.author)
+            await m.edit(embed=embeds[page - 1])
+
+    @quote.command()
+    @commands.is_owner()
+    async def export(self, ctx):
+        self.c.execute("SELECT rowid, * from quotes")
+        x = self.c.fetchall()
+        with open("out.txt", "wb") as fp:
+            fp.write("\n".join([f"#{i[0]} @ {i[4]}: <{i[1]}> {i[2]} (Added by: {i[3]})" for i in x]).encode('utf8'))
+        await ctx.send("Quotes exported.", file=discord.File("out.txt", "quotes.txt"))
+
+    @quote.command(aliases=["id", "fetch"])
+    async def get(self, ctx, number):
+        """ Get a quote by it's QuoteID number """
+        if not number.isdigit():
+            return
+        self.c.execute(f"SELECT rowid, * FROM quotes WHERE rowid = {number}")
+        x = self.c.fetchone()
+        if x is None:
+            return await ctx.send(f"Quote {number} does not exist.")
+        e = await self.make_embed(x)
+        await ctx.send(embed=e)
+
+    @quote.command(invoke_without_command=True)
+    async def add(self, ctx, target):
+        """ Add a quote, either by message ID or grabs the last message a user sent """
+        if ctx.message.mentions:
+            messages = await ctx.history(limit=123).flatten()
+            user = ctx.message.mentions[0]
+            if ctx.message.author == user:
+                return await ctx.send("You can't quote yourself.")
+            m = discord.utils.get(messages, channel=ctx.channel, author=user)
+        elif target.isdigit():
+            try:
+                m = await ctx.channel.fetch_message(int(target))
+            except discord.errors.NotFound:
+                return await ctx.send('Message not found. Are you sure that\'s a valid ID?')
+        if not m:
+            return await ctx.send(f":no_entry_sign: Could not find message with id {target}")
+        if m.author.id == ctx.author.id:
+            return await ctx.send('You can\'t quote yourself you virgin.')
+        n = await ctx.send("Attempting to add quote to db...")
+        insert_tuple = (m.author.id, m.clean_content, m.channel.id, m.created_at, ctx.author.id)
+        self.c.execute("INSERT INTO quotes VALUES (?,?,?,?,?)", insert_tuple)
+        self.conn.commit()
+        self.c.execute("SELECT rowid, * FROM quotes ORDER BY rowid DESC")
+        x = self.c.fetchone()
+        e = await self.make_embed(x)
+        await n.edit(content=":white_check_mark: Successfully added to database", embed=e)
+
+    @quote.command()
+    async def last(self, ctx, arg: discord.Member = None):
+        """ Gets the last saved message (optionally from user) """
+        if not arg:
+            self.c.execute("SELECT rowid, * FROM quotes ORDER BY rowid DESC")
+            x = self.c.fetchone()
+            if not x:
+                await ctx.send("No quotes found.")
                 return
-
-        quote = self.quote_from_message(message, user, image)
-        aid = quote["aid"]
-        qid = quote["qid"]
-        if(not self.quotes.get(aid)):
-            self.quotes[aid] = {}
-        if(self.quotes[aid].get(qid)):
-            await self.bot.send_message(message.channel, "Oida des hob i scho gspeichert!")
-            return
-
-        self.quotes[aid][qid] = quote
-        self.store_quotes()
-        await self.send_quote_to_channel(quote, message.channel)
-
-
-    async def votedel_quote(self, message):
-        if(not message.embeds):
-            return
-        footer = message.embeds[0].get("footer")
-        if(not footer or not footer.get("text")):
-            return
-        if(not (len(footer["text"].split()) > 1)):
-            return
-        qid = footer["text"].split()[1]
-        if(not qid.isdigit()):
-            return
-
-        await self.del_quote_by_id(qid, message.channel)
-
-    async def send_quote_to_channel(self, quote, channel):
-        em = self.gen_embed(quote, channel)
-        await self.bot.send_message(channel, embed=em)
-
-    @commands.command(name="quote", pass_context=True)
-    async def get_quote(self, ctx):
-        if(not self.quotes):
-            await self.bot.send_message(ctx.message.channel, "I hob no kane Zitate gspeichert.")
-            return
-
-        authorId = ctx.message.clean_content.replace("!quote", "", 1).strip()
-
-        #print(authorId)
-
-        if(ctx.message.mentions):
-            author = random.choice(ctx.message.mentions).id
-
-            if(not self.quotes.get(author)):
-                await self.bot.send_message(ctx.message.channel, "Der hot no nix deppates gsogt.")
+        else:
+            self.c.execute(f"SELECT rowid, * FROM quotes WHERE userid = {arg.id} ORDER BY rowid DESC")
+            x = self.c.fetchone()
+            if not x:
+                await ctx.send(f"No quotes found for user {arg.mention}.")
                 return
-        elif authorId != "":
-            if authorId in self.quotes:
-                author = authorId
-            else:
-                # search quotes for passed id
-                for userId in self.quotes:
-                    for quote in self.quotes[userId].values():
-                        if quote["qid"] == authorId:
-                            await self.send_quote_to_channel(quote, ctx.message.channel)
-                            return
+        e = await self.make_embed(x)
+        await ctx.send(embed=e)
 
-                author = None
-                for userId in self.quotes:
-                    if authorId.lower() == list(self.quotes[userId].values())[0]["author"].lower():
-                        author = userId
-                        break
-                
-                if author is None:
-                    await self.bot.send_message(ctx.message.channel, "I hob niemand mit dem Namen gfundn.")
-                    return
+    @quote.command(name="del")
+    @commands.has_permissions(manage_messages=True)
+    async def _del(self, ctx, id):
+        """ Delete quote by quote ID """
+        if not id.isdigit():
+            await ctx.send("That doesn't look like a valid ID")
         else:
-            author = random.choice(list(self.quotes.keys()))
+            self.c.execute(f"SELECT rowid, * FROM quotes WHERE rowid = {id}")
+            x = self.c.fetchone()
+            if not x:
+                return await ctx.send(f"No quote found with ID #{id}")
+            e = await self.make_embed(x)
+            m = await ctx.send("Delete this quote?", embed=e)
+            await m.add_reaction("👍")
+            await m.add_reaction("👎")
 
-        if(self.quotes[author].keys()):
-            entry = random.choice(list(self.quotes[author].keys()))
-            await self.send_quote_to_channel(self.quotes[author][entry], ctx.message.channel)
-        else:
-            await self.bot.send_message(ctx.message.channel, "I hob no kane Zitate gspeichert.")
+            def check(reaction, user):
+                if reaction.message.id == m.id and user == ctx.author:
+                    e = str(reaction.emoji)
+                    return e.startswith(("👍", "👎"))
+            try:
+                res = await self.bot.wait_for("reaction_add", check=check, timeout=30)
+            except asyncio.TimeoutError:
+                return await ctx.send("Response timed out after 30 seconds, quote not deleted", delete_after=30)
+            res = res[0]
+            if res.emoji.startswith("👎"):
+                await ctx.send("OK, quote not deleted", delete_after=20)
+            elif res.emoji.startswith("👍"):
+                self.c.execute(f"DELETE FROM quotes WHERE rowid = {id}")
+                await ctx.send(f"Quote #{id} has been deleted.")
+                await m.delete()
+                await ctx.message.delete()
+                self.conn.commit()
 
-    @checks.admin_or_permissions(manage_roles=True)
-    @commands.command(name="delquote", pass_context=True)
-    async def del_quote(self, ctx):
-        message = ctx.message
-        channel = message.channel
-        qid = int(message.clean_content.replace("!delquote ", "", 1))
-        await self.del_quote_by_id(qid, channel)
-
-    async def del_quote_by_id(self, qid, channel):
-        for author in self.quotes.keys():
-            for q in self.quotes[author].keys():
-                if q == str(qid):
-                    self.quotes[author].pop(q)
-                    if(not self.quotes[author].keys()):
-                        self.quotes.pop(author)
-                    await self.bot.send_message(channel, "Zitat is glöscht!")
-                    self.store_quotes()
-                    return
-        await self.bot.send_message(channel, "Ka Zitat gfunden!")
-
-    def gen_embed(self, quote, channel):
-        member = discord.utils.find(lambda m: str(m.id) == quote.get("aid"), channel.server.members)
-        if(member):
-            author = member.display_name
-        else:
-            author = quote.get("author")
-        content = quote.get("content")
-        timestamp = quote.get("time")
-        avatar = quote.get("avatar")
-        adder = quote.get("adder")
-        quote_id = quote.get("qid")
-        if(quote.get("content")):
-            em = discord.Embed(description=content,
-                               color=discord.Color.purple())
-        else:
-            em = discord.Embed(color=discord.Color.purple())
-        if(quote.get("image")):
-            em.set_image(url=quote["image"])
-
-        em.set_author(name='Zitat von {}'.format(author),
-                      icon_url=avatar)
-        em.set_footer(text='Zitat {} hinzugfügt am {} UTC von {}'.format(quote_id, timestamp, adder))
-        return em
-
-    def quote_from_message(self, message, user, image=False):
-        quote = {}
-        quote["author"] = message.author.display_name
-        quote["aid"] = message.author.id
-        quote["adder"] = user.name
-        quote["content"] = message.clean_content
-        quote["qid"] = str(message.id)
-        quote["time"] = message.timestamp.strftime('%Y-%m-%d %H:%M')
-        author = message.author
-        quote["avatar"] = author.avatar_url if author.avatar \
-            else author.default_avatar_url
-        if(image):
-            quote["image"] = message.attachments[0]["url"]
-        return quote
-
-    def store_quotes(self):
-        with open('quotes.json', 'w') as out:
-            json.dump(self.quotes, out)
-
-
-def setup(bot):
-    bot.add_cog(Quote(bot))
+    @quote.command()
+    async def stats(self, ctx, arg: discord.Member = None):
+        """ See how many times you've been quoted, and how many quotes you've added"""
+        if not arg:
+            arg = ctx.author
+        self.c.execute(f"SELECT COUNT(*) FROM quotes WHERE quoterid = {arg.id}")
+        y = self.c.fetchone()[0]
+        self.c.execute(f"SELECT COUNT(*) FROM quotes WHERE userid = {arg.id}")
+        x = self.c.fetchone()[0]
+        await ctx.send(f"{arg.mention} has been quoted {x} times, and has added {y} quotes")
