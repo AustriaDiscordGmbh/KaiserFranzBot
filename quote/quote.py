@@ -10,7 +10,6 @@ class Quote(commands.Cog):
     """My quote"""
     def __init__(self, bot):
         self.bot = bot
-        print(dir(commands))
         self.conn = sqlite3.connect('quotes.db')
         self.c = self.conn.cursor()
 
@@ -21,9 +20,6 @@ class Quote(commands.Cog):
         self.conn.close()
         self.conn = sqlite3.connect('quotes.db')
         self.c = self.conn.cursor()
-
-    async def on_ready():
-        print('Ready!')
 
     async def make_embed(self, data):
         # [id,author,content,channelid,timestamp,submitterid]
