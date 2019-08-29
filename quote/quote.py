@@ -10,6 +10,7 @@ class Quote(commands.Cog):
     """My quote"""
     def __init__(self, bot):
         self.bot = bot
+        print(dir(commands))
         self.conn = sqlite3.connect('quotes.db')
         self.c = self.conn.cursor()
 
@@ -20,6 +21,9 @@ class Quote(commands.Cog):
         self.conn.close()
         self.conn = sqlite3.connect('quotes.db')
         self.c = self.conn.cursor()
+
+    async def on_ready():
+        print('Ready!')
 
     async def make_embed(self, data):
         # [id,author,content,channelid,timestamp,submitterid]
@@ -165,10 +169,20 @@ class Quote(commands.Cog):
                 return await ctx.send('Message not found. Are you sure that\'s a valid ID?')
         if not m:
             return await ctx.send(f":no_entry_sign: Could not find message with id {target}")
-        if m.author.id == ctx.author.id:
-            return await ctx.send('You can\'t quote yourself you virgin.')
-        n = await ctx.send("Attempting to add quote to db...")
-        insert_tuple = (m.author.id, m.clean_content, m.channel.id, m.created_at, ctx.author.id)
+
+        return await self.add_to_db(m, ctx.author, ctx)
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if reaction.emoji == "💾" and reaction.count == 1:
+            return await self.add_to_db(reaction.message, user, reaction.message.channel)
+
+    async def add_to_db(self, message, adder, recv):
+        m = message
+        if m.author.id == adder.id:
+            return await recv.send("You can't quote yourself you virgin.")
+        n = await recv.send("Attempting to add quote to db...")
+        insert_tuple = (m.author.id, m.clean_content, m.channel.id, m.created_at, adder.id)
         self.c.execute("INSERT INTO quotes VALUES (?,?,?,?,?)", insert_tuple)
         self.conn.commit()
         self.c.execute("SELECT rowid, * FROM quotes ORDER BY rowid DESC")
