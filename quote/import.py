@@ -7,6 +7,8 @@ import parse
 
 print("loading from: " + sys.argv[1])
 print("EMERGENCY SOLUTION FOR IMPORTING EXPORT TXT DO NOT FUCKING USE IT FOR BACKUPS")
+print("doesn't work anyways, lol")
+sys.exit()
 
 with open(sys.argv[1]) as f:
     content = f.read()
@@ -22,7 +24,8 @@ for e in content.split("#")[1:]:
 conn = sqlite3.connect('importquotes.db')
 c = conn.cursor()
 # quote layout: <id> @ <timestamp>: <FROM_USER> <TEXT> (Added by: <ADD_USER>)
-# db layout: #{i[0]} @ {i[4]}: <{i[1]}> {i[2]} (Added by: {i[3]})
+# db layout: #{i[0]} @ {i[3]}: <{i[1]}> {i[2]} (Added by: {i[4]})
+# numbers are wrong and channel ID is missing, so idk, doesn't work - kthx bye.
 for q in quotes:
     r = parse.parse("{qid} @ {ts}: <{fuid}> {text} (Added by: {quid})", q)
     if not r:
