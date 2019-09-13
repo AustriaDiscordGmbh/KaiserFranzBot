@@ -135,7 +135,7 @@ class Quote(commands.Cog):
         x = self.c.fetchall()
         with open("out.txt", "wb") as fp:
             fp.write("\n".join([f"#{i[0]} @ {i[4]}: <{i[1]}> {i[2]} (Added by: {i[3]})" for i in x]).encode('utf8'))
-        await ctx.send("Quotes exported.", file=discord.File("out.txt", "quotes.txt"))
+        await ctx.send("Quotes exported. THIS IS NOT FOR BACKUP REASONS!", file=discord.File("out.txt", "quotes.txt"))
 
     @quote.command(aliases=["id", "fetch"])
     async def get(self, ctx, number):
