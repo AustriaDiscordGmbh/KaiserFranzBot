@@ -40,6 +40,12 @@ class Quote(commands.Cog):
                                   lambda x, y: 1 if re.search(x, y)
                                   else 0)
 
+    def cog_unload(self):
+        """
+        Closes database connection
+        """
+        self.conn.close()
+
     @commands.group(invoke_without_command=True, aliases=["quotes"])
     async def quote(self, ctx, *, member: discord.Member = None):
         """
@@ -266,7 +272,7 @@ class Quote(commands.Cog):
             url = entry[2]
             is_image = entry[3]
             # check if still available:
-            r = requests.get(url)
+            r = requests.head(url)
             if r.status_code != 200:
                 url = await self.archive_attachment(att_id)
             ret.append((filename, url, is_image))
