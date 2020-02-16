@@ -1,0 +1,4 @@
+*.bkp
+quote.db
+config.py
+__pycache__

@@ -1,250 +1,588 @@
-# Partly stolen from https://github.com/Painezor/Toonbot/blob/master/ext/quotes.py
-import discord
-import sqlite3
-import asyncio
+# this all started with a little fork from toonbot's quotes.py:
+# https://github.com/Painezor/Toonbot/blob/master/ext/quotes.py
+from .config import QUOTE_ARCHIVE_CHAN_ID, QUOTE_DB_FILE
 from redbot.core import commands
 from datetime import datetime
+from pathlib import Path
+import discord
+import requests
+import io
+import json
+import sqlite3
+import re
+# https://pypi.org/project/disputils/
+import disputils
 
 
 class Quote(commands.Cog):
-    """My quote"""
+    """
+    Allows you to quote whatever a user says and posts on discord.
+    Supports attachments and embeds.
+    Simple search and regex is included.
+    Attachments are stored to the database and kept for archiving.
+    """
+
     def __init__(self, bot):
+        """
+        Loads bot from config, inits database and sets regex function
+        """
         self.bot = bot
-        self.conn = sqlite3.connect('quotes.db')
-        self.c = self.conn.cursor()
 
-    def __unload(self):
-        self.conn.close()
+        if not QUOTE_ARCHIVE_CHAN_ID and QUOTE_DB_FILE:
+            raise ValueError("Please set values in config.py.")
+        if not Path(QUOTE_DB_FILE).is_file():
+            raise ValueError("Database file does not exist.")
 
-    def __reload(self):
-        self.conn.close()
-        self.conn = sqlite3.connect('quotes.db')
-        self.c = self.conn.cursor()
-
-    async def make_embed(self, data):
-        # [id,author,content,channelid,timestamp,submitterid]
-        author = discord.utils.get(self.bot.get_all_members(), id=data[1])
-        channel = self.bot.get_channel(data[3])
-        submitter = discord.utils.get(self.bot.get_all_members(), id=data[5])
-        submittern = submitter.display_name if submitter else "deleted user"
-        submitteravi = submitter.avatar_url if submitter else ""
-
-        e = discord.Embed(color=0x7289DA, description=data[2])
-        e.set_author(name=f"Quote #{data[0]}",
-                     icon_url="https://discordapp.com/assets/2c21aeda16de354ba5334551a883b481.png")
-
-        if author:
-            e.set_thumbnail(url=author.avatar_url)
-            e.title = f"{author.display_name} in #{channel}"
-        else:
-            e.set_thumbnail(url="https://discordapp.com/assets/2c21aeda16de354ba5334551a883b481.png")
-            e.title = f"Deleted user in #{channel}"
-
-        e.set_footer(text=f"Added by {submittern}", icon_url=submitteravi)
-        e.timestamp = datetime.strptime(data[4], "%Y-%m-%d %H:%M:%S.%f")
-        return e
+        self.archive_chan_id = QUOTE_ARCHIVE_CHAN_ID
+        self.db_file = QUOTE_DB_FILE
+        self.conn = sqlite3.connect(self.db_file)
+        self.conn.create_function('regexp', 2,
+                                  lambda x, y: 1 if re.search(x, y)
+                                  else 0)
 
     @commands.group(invoke_without_command=True, aliases=["quotes"])
     async def quote(self, ctx, *, member: discord.Member = None):
-        """ Show random quote (optionally from specific user). Use ".help quote" to view subcommands. """
-        if ctx.invoked_subcommand is None:
-            if member:  # If member provided, show random quote from member.
-                self.c.execute(f"SELECT rowid, * FROM quotes WHERE userid = {member.id} ORDER BY RANDOM()")
-                x = self.c.fetchone()
-                if not x:
-                    return await ctx.send(f"No quotes found from user {member.mention}")
-            else:  # Display a random quote.
-                self.c.execute("SELECT rowid, * FROM quotes ORDER BY RANDOM()")
-                x = self.c.fetchone()
-                if not x:
-                    return await ctx.send("Quote DB appears to be empty.")
-                else:
-                    await ctx.send("Displaying random quote:")
-        e = await self.make_embed(x)
+        """
+        Show random quote (optionally from specific user)
+        """
+        if not ctx.invoked_subcommand:
+            cur = self.conn.cursor()
+            if member:
+                sql = '''SELECT id FROM quotes WHERE author_id=? ORDER BY
+                         RANDOM() LIMIT 1;'''
+                cur.execute(sql, (member.id,))
+            else:
+                sql = '''SELECT id FROM quotes ORDER BY RANDOM() LIMIT 1;'''
+                cur.execute(sql)
+        ans = cur.fetchone()
+        if not ans:
+            return await ctx.send(":person_shrugging: No quote available.")
+        return await self.get(ctx, str(ans[0]))
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        """
+        1 disk emoji is storing the message
+        5 wastebasked emoji is deleting the quote
+        """
+        # 1x floppy disk = add quote
+        if reaction.emoji == "\U0001F4BE" and reaction.count == 1:
+            return await self.add_quote(reaction.message, user)
+
+        # 5x wastebasket = delete quote
+        if reaction.emoji == "\U0001F5D1\U0000FE0F":
+            if (reaction.count == 5 or
+               user.permissions_in(reaction.message.channel).manage_messages):
+                return await self.check_and_delete_quote(reaction.message)
+
+    @quote.command()
+    async def add(self, ctx, target):
+        """
+        Stores given target to database
+        target can either be a msg id or a user mention
+        user mention will quote the last thing said by him
+        """
+        if ctx.message.mentions:
+            user = ctx.message.mentions[0]
+            messages = await ctx.history(limit=123).flatten()
+            msg = discord.utils.get(messages, channel=ctx.channel, author=user)
+        elif target.isdigit():
+            try:
+                msg = await ctx.channel.fetch_message(int(target))
+            except discord.errors.NotFound:
+                return await ctx.send(":confused: Sure that's a valid id?")
+        else:
+            return await ctx.send(":confused: Can't work with this.")
+        await self.add_quote(msg, ctx.author)
+
+    @quote.command(aliases=["id", "fetch"])
+    async def get(self, ctx, number):
+        """
+        Get quote by id and send it to channel
+        """
+        if not number.isdigit():
+            return
+        quote_id = int(number)
+
+        info = self.load_msg(quote_id)
+        if not info:
+            return await ctx.send(":rage: Quote #" + number +
+                                  " does not exist.")
+        embeds = self.load_embeds(info["msg_id"])
+        attachments = await self.load_attachments(info["msg_id"])
+
+        e = self.make_embed(info, embeds, attachments)
         await ctx.send(embed=e)
+        for embed in embeds:
+            await ctx.send(embed=discord.Embed.from_dict(embed))
 
     @quote.command()
     async def search(self, ctx, *, qry):
-        with ctx.typing():
-            m = await ctx.send('Searching...')
-            localconn = sqlite3.connect('quotes.db')
-            lc = localconn.cursor()
-            lc.execute(f"SELECT rowid, * FROM quotes WHERE quotetext LIKE (?)", (f'%{qry}%',))
-            x = lc.fetchall()
-            lc.close()
-            localconn.close()
+        """
+        Shows messages matching given qry
+        """
+        qry = '%' + qry + '%'
+        sql = '''SELECT id FROM quotes WHERE content LIKE (?)'''
+        await self.search_general(ctx, sql, qry)
 
-        numquotes = len(x)
-        embeds = []
-        for i in x:
-            y = await self.make_embed(i)
-            embeds.append(y)
+    @quote.command()
+    async def regex(self, ctx, regex):
+        """
+        Search with regex
+        """
+        sql = '''SELECT id FROM quotes WHERE content REGEXP (?)'''
+        await self.search_general(ctx, sql, regex)
 
-        # Do we need to paginate?
-        if numquotes == 0:
-            return await m.edit(content=f'No quotes matching {qry} found.')
+    @quote.command()
+    async def user(self, ctx, arg: discord.Member = None):
+        """
+        Get all quotes from oneself or given user
+        """
+        if not arg:
+            arg = ctx.author
+        sql = '''SELECT id FROM quotes WHERE author_id=?'''
+        await self.search_general(ctx, sql, arg.id)
 
-        if numquotes == 1:
-            return await m.edit(content=f"{ctx.author.mention}: 1 quote found", embed=embeds[0])
-        else:
-            await m.edit(content=f"{ctx.author.mention}: {numquotes} quotes found", embed=embeds[0])
-        # Paginate then.
-        page = 0
-        if numquotes > 2:
-            await m.add_reaction("⏮")  # first
-        if numquotes > 1:
-            await m.add_reaction("◀")  # prev
-        if numquotes > 1:
-            await m.add_reaction("▶")  # next
-        if numquotes > 2:
-            await m.add_reaction("⏭")  # last
-
-        def check(reaction, user):
-            if reaction.message.id == m.id and user == ctx.author:
-                e = str(reaction.emoji)
-                return e.startswith(('⏮', '◀', '▶', '⏭'))
-
-        # Reaction Logic Loop.
-        while True:
-            try:
-                res = await self.bot.wait_for("reaction_add", check=check, timeout=30)
-            except asyncio.TimeoutError:
-                await m.clear_reactions()
-                break
-            res = res[0]
-            if res.emoji == "⏮":  # first
-                page = 1
-                await m.remove_reaction("⏮", ctx.message.author)
-            elif res.emoji == "◀":  # prev
-                await m.remove_reaction("◀", ctx.message.author)
-                if page > 1:
-                    page = page - 1
-            elif res.emoji == "▶":  # next
-                await m.remove_reaction("▶", ctx.message.author)
-                if page < numquotes:
-                    page = page + 1
-            elif res.emoji == "⏭":  # last
-                page = numquotes
-                await m.remove_reaction("⏭", ctx.message.author)
-            await m.edit(embed=embeds[page - 1])
+    @quote.command()
+    async def adder(self, ctx, arg: discord.Member = None):
+        """
+        Get all quotes added from oneself or given user
+        """
+        if not arg:
+            arg = ctx.author
+        sql = '''SELECT id FROM quotes WHERE adder_id=?'''
+        await self.search_general(ctx, sql, arg.id)
 
     @quote.command()
     @commands.is_owner()
     async def export(self, ctx):
-        self.c.execute("SELECT rowid, * from quotes")
-        x = self.c.fetchall()
-        with open("out.txt", "wb") as fp:
-            fp.write("\n".join([f"#{i[0]} @ {i[4]}: <{i[1]}> {i[2]} (Added by: {i[3]})" for i in x]).encode('utf8'))
-        await ctx.send("Quotes exported. THIS IS NOT FOR BACKUP REASONS!", file=discord.File("out.txt", "quotes.txt"))
-
-    @quote.command(aliases=["id", "fetch"])
-    async def get(self, ctx, number):
-        """ Get a quote by it's QuoteID number """
-        if not number.isdigit():
-            return
-        self.c.execute(f"SELECT rowid, * FROM quotes WHERE rowid = {number}")
-        x = self.c.fetchone()
-        if x is None:
-            return await ctx.send(f"Quote {number} does not exist.")
-        e = await self.make_embed(x)
-        await ctx.send(embed=e)
-
-    @quote.command(invoke_without_command=True)
-    async def add(self, ctx, target):
-        """ Add a quote, either by message ID or grabs the last message a user sent """
-        if ctx.message.mentions:
-            messages = await ctx.history(limit=123).flatten()
-            user = ctx.message.mentions[0]
-            if ctx.message.author == user:
-                return await ctx.send("You can't quote yourself.")
-            m = discord.utils.get(messages, channel=ctx.channel, author=user)
-        elif target.isdigit():
-            try:
-                m = await ctx.channel.fetch_message(int(target))
-            except discord.errors.NotFound:
-                return await ctx.send('Message not found. Are you sure that\'s a valid ID?')
-        if not m:
-            return await ctx.send(f":no_entry_sign: Could not find message with id {target}")
-
-        return await self.add_to_db(m, ctx.author, ctx)
-
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        if reaction.emoji == "💾" and reaction.count == 1:
-            return await self.add_to_db(reaction.message, user, reaction.message.channel)
-
-    async def add_to_db(self, message, adder, recv):
-        m = message
-        if m.author.id == adder.id:
-            return await recv.send("You can't quote yourself you virgin.")
-        n = await recv.send("Attempting to add quote to db...")
-        insert_tuple = (m.author.id, m.clean_content, m.channel.id, m.created_at, adder.id)
-        self.c.execute("INSERT INTO quotes VALUES (?,?,?,?,?)", insert_tuple)
-        self.conn.commit()
-        self.c.execute("SELECT rowid, * FROM quotes ORDER BY rowid DESC")
-        x = self.c.fetchone()
-        e = await self.make_embed(x)
-        await n.edit(content=":white_check_mark: Successfully added to database", embed=e)
+        """
+        Uploads database and sends it to owner.
+        """
+        await ctx.send(":card_box: Quote database, have fun.",
+                       file=discord.File(self.db_file, "quote.db"))
 
     @quote.command()
     async def last(self, ctx, arg: discord.Member = None):
-        """ Gets the last saved message (optionally from user) """
-        if not arg:
-            self.c.execute("SELECT rowid, * FROM quotes ORDER BY rowid DESC")
-            x = self.c.fetchone()
-            if not x:
-                await ctx.send("No quotes found.")
-                return
+        """
+        Show last added quote, optionally by given user
+        """
+        cur = self.conn.cursor()
+        if arg:
+            sql = '''SELECT id FROM quotes WHERE author_id=? ORDER BY id DESC
+                  '''
+            cur.execute(sql, (arg.id,))
         else:
-            self.c.execute(f"SELECT rowid, * FROM quotes WHERE userid = {arg.id} ORDER BY rowid DESC")
-            x = self.c.fetchone()
-            if not x:
-                await ctx.send(f"No quotes found for user {arg.mention}.")
-                return
-        e = await self.make_embed(x)
-        await ctx.send(embed=e)
+            sql = '''SELECT id FROM quotes ORDER BY id DESC'''
+            cur.execute(sql)
+        last_id = cur.fetchone()
+        cur.close()
+        if not last_id:
+            return await ctx.send(":person_shrugging: No quote available.")
+        await self.get(ctx, str(last_id[0]))
 
-    @quote.command(name="del")
+    @quote.command("delete", aliases=["del"])
     @commands.has_permissions(manage_messages=True)
-    async def _del(self, ctx, id):
-        """ Delete quote by quote ID """
-        if not id.isdigit():
-            await ctx.send("That doesn't look like a valid ID")
+    async def delete_quote_cmd(self, ctx, qid):
+        """
+        Asks and deletes given quote id
+        """
+        if not qid.isdigit():
+            return await ctx.send(":rage: That's not a valid quote id")
+        ask = disputils.BotConfirmation(ctx, 0x7289DA)
+
+        await self.get(ctx, qid)
+        if not self.get_msg_id_from_quote_id(qid):
+            return
+        await ask.confirm("Delete Quote #" + qid + "?")
+        if ask.confirmed:
+            self.delete_quote(qid)
+            await ask.update("Quote #" + qid + " deleted.")
         else:
-            self.c.execute(f"SELECT rowid, * FROM quotes WHERE rowid = {id}")
-            x = self.c.fetchone()
-            if not x:
-                return await ctx.send(f"No quote found with ID #{id}")
-            e = await self.make_embed(x)
-            m = await ctx.send("Delete this quote?", embed=e)
-            await m.add_reaction("👍")
-            await m.add_reaction("👎")
+            await ask.update("Fair, nothing happend.")
 
-            def check(reaction, user):
-                if reaction.message.id == m.id and user == ctx.author:
-                    e = str(reaction.emoji)
-                    return e.startswith(("👍", "👎"))
-            try:
-                res = await self.bot.wait_for("reaction_add", check=check, timeout=30)
-            except asyncio.TimeoutError:
-                return await ctx.send("Response timed out after 30 seconds, quote not deleted", delete_after=30)
-            res = res[0]
-            if res.emoji.startswith("👎"):
-                await ctx.send("OK, quote not deleted", delete_after=20)
-            elif res.emoji.startswith("👍"):
-                self.c.execute(f"DELETE FROM quotes WHERE rowid = {id}")
-                await ctx.send(f"Quote #{id} has been deleted.")
-                await m.delete()
-                await ctx.message.delete()
-                self.conn.commit()
-
-    @quote.command()
+    @quote.command(aliases=["stat"])
     async def stats(self, ctx, arg: discord.Member = None):
-        """ See how many times you've been quoted, and how many quotes you've added"""
+        """
+        See stats about quotes for oneself or given user
+        """
         if not arg:
             arg = ctx.author
-        self.c.execute(f"SELECT COUNT(*) FROM quotes WHERE quoterid = {arg.id}")
-        y = self.c.fetchone()[0]
-        self.c.execute(f"SELECT COUNT(*) FROM quotes WHERE userid = {arg.id}")
-        x = self.c.fetchone()[0]
-        await ctx.send(f"{arg.mention} has been quoted {x} times, and has added {y} quotes")
+
+        sql = '''SELECT COUNT (*) FROM quotes WHERE author_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (arg.id,))
+        cnt_quoted = cur.fetchone()[0]
+        cur.close()
+
+        sql = '''SELECT COUNT (*) FROM quotes WHERE adder_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (arg.id,))
+        cnt_added = cur.fetchone()[0]
+        cur.close()
+
+        ans = ":pencil: "
+        ans += arg.mention + " has been quoted " + str(cnt_quoted) + " times, "
+        ans += "and has added " + str(cnt_added) + " quotes."
+        await ctx.send(ans)
+
+    def store_attachments(self, msg):
+        """
+        Stores attachments to database + archives them on local disk
+        returns: list of attachment tuples (filename, urls, is_image)
+        """
+        ret = []
+        for att in msg.attachments:
+            r = requests.get(att.url)
+            sql = '''INSERT INTO attachments
+                     (msg_id, content, filename, url, is_image)
+                     VALUES(?, ?, ?, ?, ?)'''
+            cur = self.conn.cursor()
+            is_image = 0
+            if att.height:
+                is_image = 1
+            cur.execute(sql, (msg.id, r.content,
+                              att.filename, att.url, is_image))
+            self.conn.commit()
+            cur.close()
+            ret.append((att.filename, att.url, is_image))
+        return ret
+
+    async def load_attachments(self, msg_id):
+        """
+        Retrieves attachments stored for msg_id.
+        Reuploads attachment to archive chan, in case unavailable
+        returns: list of attachment tuples (filename, url, is_image)
+        """
+        sql = '''SELECT id, filename, url, is_image
+                 FROM attachments WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+
+        ret = []
+        for entry in cur.fetchall():
+            att_id = entry[0]
+            filename = entry[1]
+            url = entry[2]
+            is_image = entry[3]
+            # check if still available:
+            r = requests.get(url)
+            if r.status_code != 200:
+                url = await self.archive_attachment(att_id)
+            ret.append((filename, url, is_image))
+        cur.close()
+        return ret
+
+    async def archive_attachment(self, att_id):
+        """
+        Pushes the attachment content to the archive channel
+        returns: new attachment url
+        """
+        sql = '''SELECT filename, content FROM attachments WHERE id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (att_id, ))
+        ans = cur.fetchall()
+        content = ans[0][1]
+        filename = ans[0][0]
+        archive = self.bot.get_channel(self.archive_chan_id)
+        rehost = await archive.send(
+                file=discord.File(io.BytesIO(content), filename))
+        url = rehost.attachments[0].url
+        cur.close()
+
+        sql = '''UPDATE attachments SET url=? WHERE id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (url, att_id))
+        self.conn.commit()
+        cur.close()
+
+        # if this is archived again, but missing anyway, delete entry
+        sql = '''DELETE FROM archive_att WHERE att_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (att_id,))
+        self.conn.commit()
+        cur.close()
+
+        sql = '''INSERT INTO archive_att(att_id, archive_msg_id)
+                 VALUES(?, ?)'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (att_id, rehost.id))
+        self.conn.commit()
+        cur.close()
+
+        return url
+
+    def delete_attachments(self, msg_id):
+        """
+        Deletes all attachment information for given msg_id
+        also removes archives
+        """
+        sql = '''SELECT id FROM attachments WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+        for entry in cur.fetchall():
+            att_id = entry[0]
+            sql = '''DELETE FROM archive_att WHERE att_id=?'''
+            cur = self.conn.cursor()
+            cur.execute(sql, (att_id,))
+            self.conn.commit()
+            cur.close()
+
+        sql = '''DELETE FROM attachments WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+        self.conn.commit()
+        cur.close()
+
+    def store_embeds(self, msg):
+        """
+        Stores given embeds to database
+        returns: list of embed dicts
+        """
+        ret = []
+        for embed in msg.embeds:
+            d = dict(embed.to_dict())
+            ret.append(d)
+            sql = '''INSERT INTO embeds(msg_id, content)
+                     VALUES(?, ?)'''
+            cur = self.conn.cursor()
+            cur.execute(sql, (msg.id, json.dumps(d)))
+            self.conn.commit()
+            cur.close()
+        return ret
+
+    def load_embeds(self, msg_id):
+        """
+        Retrieves embeds stored for msg_id.
+        returns: list of embed dicts
+        """
+        sql = '''SELECT content FROM embeds WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+        ret = []
+        for entry in cur.fetchall():
+            d = json.loads(entry[0])
+            ret.append(d)
+        cur.close()
+        return ret
+
+    def delete_embeds(self, msg_id):
+        """
+        Deletes stored embed information for given message id
+        """
+        sql = '''DELETE FROM embeds WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+        self.conn.commit()
+        cur.close()
+
+    def store_msg(self, msg, adder):
+        """
+        Stores all data needed to build a quote from a msg added by adder
+        returns: id of the quote
+        """
+        ans = self.get_quote_id_from_msg_id(msg.id)
+        if ans:
+            # already quoted, just give them the info
+            return ans
+        sql = '''INSERT INTO quotes(msg_id, chan_id, author_id, author_name,
+                 adder_id, jump_url, timestamp, content)
+                 VALUES(?, ?, ?, ?, ?, ?, ?, ?)'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg.id, msg.channel.id, msg.author.id,
+                          msg.author.display_name, adder.id, msg.jump_url,
+                          msg.created_at, msg.clean_content))
+        self.conn.commit()
+        cur.close()
+        return self.get_quote_id_from_msg_id(msg.id)
+
+    def load_msg(self, quote_id):
+        """
+        Loads message from database with the given quote_id
+        returns: dict with all msg information.
+        """
+        sql = '''SELECT * FROM quotes WHERE id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (quote_id,))
+        ans = cur.fetchone()
+        ret = {}
+        if not ans:
+            return ret
+        ret["quote_id"] = ans[0]
+        ret["msg_id"] = ans[1]
+        ret["chan_id"] = ans[2]
+        ret["author_id"] = ans[3]
+        ret["author_name"] = ans[4]
+        ret["adder_id"] = ans[5]
+        ret["jump_url"] = ans[6]
+        ret["timestamp"] = ans[7]
+        ret["content"] = ans[8]
+        return ret
+
+    def delete_msg(self, msg_id):
+        """
+        Deletes message from database with the given msg_id
+        """
+        sql = '''DELETE FROM quotes WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+        self.conn.commit()
+        cur.close()
+
+    def get_quote_id_from_msg_id(self, msg_id):
+        """
+        Retrieve quote id for given msg id
+        returns quote id or None
+        """
+        sql = '''SELECT id FROM quotes WHERE msg_id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (msg_id,))
+        ans = cur.fetchone()
+        return ans[0] if ans else None
+
+    def get_msg_id_from_quote_id(self, quote_id):
+        """
+        Retrievie msg id for given quote id
+        returns message id or None
+        """
+        sql = '''SELECT msg_id FROM quotes WHERE id=?'''
+        cur = self.conn.cursor()
+        cur.execute(sql, (quote_id,))
+        ans = cur.fetchone()
+        return ans[0] if ans else None
+
+    def make_embed(self, info, embeds=[], attachments=[]):
+        """
+        create embed form msg info
+        returns discord embed representing the quote
+        """
+        author = self.bot.get_user(info["author_id"])
+        channel = self.bot.get_channel(info["chan_id"])
+        submitter = self.bot.get_user(info["adder_id"])
+
+        e = discord.Embed(color=0x7289DA, description="")
+        if not author:
+            current_name = "Deleted user"
+            avatar_url = "https://emojipedia-us.s3.dualstack.us-west-1."
+            avatar_url += "amazonaws.com/thumbs/120/microsoft/209/"
+            avatar_url += "skull_1f480.png"
+        else:
+            current_name = discord.utils.get(self.bot.get_all_members(),
+                                             id=author.id).display_name
+            avatar_url = author.avatar_url
+
+        if current_name == info["author_name"]:
+            author_info = current_name
+        else:
+            author_info = current_name + ", said as "
+            author_info += info["author_name"] + ","
+
+        e.set_author(
+            name=author_info + " in #" + str(channel),
+            icon_url=avatar_url)
+
+        e.description += "**__[Quote #"
+        e.description += str(info["quote_id"]) + "]("
+        e.description += info['jump_url'] + ")__**\n"
+
+        if attachments:
+            att_set = False
+            img_set = False
+            for entry in attachments:
+                filename = entry[0]
+                url = entry[1]
+                is_image = entry[2]
+                if (not img_set) and is_image:
+                    img_set = True
+                    e.set_image(url=url)
+                else:
+                    if not att_set:
+                        e.add_field(name="Message had other attachment(s):",
+                                    value="_ _", inline=False)
+                        att_set = True
+                    e.add_field(name=filename + ": " + url, value="_ _",
+                                inline=False)
+        if embeds:
+            e.add_field(name="Message had embed(s), see below.", value="_ _")
+
+        e.description += info["content"]
+        footer = "Added by "
+        if submitter:
+            footer += discord.utils.get(self.bot.get_all_members(),
+                                        id=submitter.id).display_name
+        else:
+            footer += "deleted user"
+        e.set_footer(text=footer,
+                     icon_url=submitter.avatar_url)
+
+        e.timestamp = datetime.strptime(info["timestamp"],
+                                        "%Y-%m-%d %H:%M:%S.%f")
+        return e
+
+    async def add_quote(self, msg, adder):
+        """
+        Acutally stores quote
+        """
+        ctx = msg.channel
+        if msg.author.id == adder.id:
+            return await ctx.send(":shushing_face: Can't quote yourself!")
+        if self.get_quote_id_from_msg_id(msg.id):
+            return
+
+        ans = await ctx.send(":file_cabinet: Attempting to add quote to db...")
+        self.store_embeds(msg)
+        self.store_attachments(msg)
+        quote_id = self.store_msg(msg, adder)
+
+        await self.get(ctx, str(quote_id))
+        await ans.edit(content=(
+            ":white_check_mark: Quote added successfully."))
+
+    def delete_quote(self, quote_id):
+        """
+        Actually deletes quote and all the stored data related to it.
+        """
+        msg_id = self.get_msg_id_from_quote_id(quote_id)
+        self.delete_attachments(msg_id)
+        self.delete_embeds(msg_id)
+        self.delete_msg(msg_id)
+
+    async def check_and_delete_quote(self, msg):
+        """
+        Verifies the to be deleted msg is a quote triggers delete after
+        """
+        ctx = msg.channel
+        if not len(msg.embeds) == 1:
+            return
+        try:
+            qid = int(msg.embeds[0].description.split('#')[1].split(']')[0])
+        except ValueError:
+            return await ctx.send(":confused: Something went wrong, eh?")
+        self.delete_quote(qid)
+        await msg.edit(content=(":wastebasket: Quote deleted successfully."))
+
+    async def search_general(self, ctx, sql, arg):
+        """
+        executes given sql with 1 given arg
+        creates pages for resulting quote ids
+        """
+        cur = self.conn.cursor()
+        try:
+            cur.execute(sql, (arg,))
+        except sqlite3.OperationalError:
+            cur.close()
+            return await ctx.send(":thinking: Nothing found.")
+
+        quotes = []
+        for entry in cur.fetchall():
+            quote_id = entry[0]
+            info = self.load_msg(quote_id)
+            embeds = self.load_embeds(info["msg_id"])
+            attachments = await self.load_attachments(info["msg_id"])
+            quotes.append(self.make_embed(info, embeds, attachments))
+        cur.close()
+
+        if not quotes:
+            return await ctx.send(":thinking: Nothing found.")
+        pag = disputils.BotEmbedPaginator(ctx, quotes)
+        await pag.run()
