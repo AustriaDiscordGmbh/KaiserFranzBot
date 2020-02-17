@@ -5,13 +5,14 @@ from redbot.core import commands
 from datetime import datetime
 from pathlib import Path
 import discord
-import requests
 import io
 import json
 import sqlite3
 import re
 # https://pypi.org/project/disputils/
 import disputils
+# https://pypi.org/project/aiohttp/
+import aiohttp
 
 
 class Quote(commands.Cog):
@@ -232,14 +233,13 @@ class Quote(commands.Cog):
         ans += "and has added " + str(cnt_added) + " quotes."
         await ctx.send(ans)
 
-    def store_attachments(self, msg):
+    async def store_attachments(self, msg):
         """
         Stores attachments to database + archives them on local disk
         returns: list of attachment tuples (filename, urls, is_image)
         """
         ret = []
         for att in msg.attachments:
-            r = requests.get(att.url)
             sql = '''INSERT INTO attachments
                      (msg_id, content, filename, url, is_image)
                      VALUES(?, ?, ?, ?, ?)'''
@@ -247,8 +247,10 @@ class Quote(commands.Cog):
             is_image = 0
             if att.height:
                 is_image = 1
-            cur.execute(sql, (msg.id, r.content,
-                              att.filename, att.url, is_image))
+            async with aiohttp.ClientSession() as cs:
+                async with cs.get(att.url) as r:
+                    cur.execute(sql, (msg.id, await r.read(),
+                                      att.filename, att.url, is_image))
             self.conn.commit()
             cur.close()
             ret.append((att.filename, att.url, is_image))
@@ -272,9 +274,10 @@ class Quote(commands.Cog):
             url = entry[2]
             is_image = entry[3]
             # check if still available:
-            r = requests.head(url)
-            if r.status_code != 200:
-                url = await self.archive_attachment(att_id)
+            async with aiohttp.ClientSession() as cs:
+                async with cs.head(url) as r:
+                    if r.status != 200:
+                        url = await self.archive_attachment(att_id)
             ret.append((filename, url, is_image))
         cur.close()
         return ret
@@ -537,7 +540,7 @@ class Quote(commands.Cog):
 
         ans = await ctx.send(":file_cabinet: Attempting to add quote to db...")
         self.store_embeds(msg)
-        self.store_attachments(msg)
+        await self.store_attachments(msg)
         quote_id = self.store_msg(msg, adder)
 
         await self.get(ctx, str(quote_id))
