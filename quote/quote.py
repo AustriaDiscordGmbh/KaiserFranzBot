@@ -29,6 +29,11 @@ class Quote(commands.Cog):
         """
         self.bot = bot
 
+        self.deleted_avatar_url = "https://emojipedia-us.s3.dualstack."
+        self.deleted_avatar_url += "us-west-1."
+        self.deleted_avatar_url += "amazonaws.com/thumbs/120/microsoft/209/"
+        self.deleted_avatar_url += "skull_1f480.png"
+
         if not QUOTE_ARCHIVE_CHAN_ID and QUOTE_DB_FILE:
             raise ValueError("Please set values in config.py.")
         if not Path(QUOTE_DB_FILE).is_file():
@@ -472,9 +477,7 @@ class Quote(commands.Cog):
         e = discord.Embed(color=0x7289DA, description="")
         if not author:
             current_name = "Deleted user"
-            avatar_url = "https://emojipedia-us.s3.dualstack.us-west-1."
-            avatar_url += "amazonaws.com/thumbs/120/microsoft/209/"
-            avatar_url += "skull_1f480.png"
+            avatar_url = self.deleted_avatar_url
         else:
             current_name = discord.utils.get(self.bot.get_all_members(),
                                              id=author.id).display_name
@@ -486,6 +489,8 @@ class Quote(commands.Cog):
             author_info = current_name + ", said as "
             author_info += info["author_name"] + ","
 
+        if not channel:
+            channel = "unknown-channel"
         e.set_author(
             name=author_info + " in #" + str(channel),
             icon_url=avatar_url)
@@ -519,10 +524,12 @@ class Quote(commands.Cog):
         if submitter:
             footer += discord.utils.get(self.bot.get_all_members(),
                                         id=submitter.id).display_name
+            sub_avatar_url = submitter.avatar_url
         else:
             footer += "deleted user"
+            sub_avatar_url = self.deleted_avatar_url
         e.set_footer(text=footer,
-                     icon_url=submitter.avatar_url)
+                     icon_url=sub_avatar_url)
 
         e.timestamp = datetime.strptime(info["timestamp"],
                                         "%Y-%m-%d %H:%M:%S.%f")
