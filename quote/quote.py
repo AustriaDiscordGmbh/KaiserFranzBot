@@ -107,26 +107,12 @@ class Quote(commands.Cog):
             return await ctx.send(":confused: Can't work with this.")
         await self.add_quote(msg, ctx.author)
 
-    @quote.command(aliases=["id", "fetch"])
-    async def get(self, ctx, number):
+    @quote.command("get", aliases=["id", "fetch"])
+    async def cmd_get(self, ctx, number):
         """
-        Get quote by id and send it to channel
+        Command to get quote by id and send it to channel
         """
-        if not number.isdigit():
-            return
-        quote_id = int(number)
-
-        info = self.load_msg(quote_id)
-        if not info:
-            return await ctx.send(":rage: Quote #" + number +
-                                  " does not exist.")
-        embeds = self.load_embeds(info["msg_id"])
-        attachments = await self.load_attachments(info["msg_id"])
-
-        e = self.make_embed(info, embeds, attachments)
-        await ctx.send(embed=e)
-        for embed in embeds:
-            await ctx.send(embed=discord.Embed.from_dict(embed))
+        return await self.get(ctx, number)
 
     @quote.command()
     async def search(self, ctx, *, qry):
@@ -195,7 +181,7 @@ class Quote(commands.Cog):
 
     @quote.command("delete", aliases=["del"])
     @commands.has_permissions(manage_messages=True)
-    async def delete_quote_cmd(self, ctx, qid):
+    async def cmd_delete(self, ctx, qid):
         """
         Asks and deletes given quote id
         """
@@ -237,6 +223,26 @@ class Quote(commands.Cog):
         ans += arg.mention + " has been quoted " + str(cnt_quoted) + " times, "
         ans += "and has added " + str(cnt_added) + " quotes."
         await ctx.send(ans)
+
+    async def get(self, ctx, number):
+        """
+        Get quote by id and send it to channel
+        """
+        if not number.isdigit():
+            return
+        quote_id = int(number)
+
+        info = self.load_msg(quote_id)
+        if not info:
+            return await ctx.send(":rage: Quote #" + number +
+                                  " does not exist.")
+        embeds = self.load_embeds(info["msg_id"])
+        attachments = await self.load_attachments(info["msg_id"])
+
+        e = self.make_embed(info, embeds, attachments)
+        await ctx.send(embed=e)
+        for embed in embeds:
+            await ctx.send(embed=discord.Embed.from_dict(embed))
 
     async def store_attachments(self, msg):
         """
