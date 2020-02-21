@@ -14,6 +14,7 @@ class ModMode(commands.Cog):
         self.bot = bot
 
     @commands.command(name="modmode")
+    @commands.has_permissions(manage_messages=True)
     async def modmode(self, ctx, *, arg=None):
         """
         enables or disables modmode
