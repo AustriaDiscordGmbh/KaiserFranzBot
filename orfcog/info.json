@@ -1,0 +1,8 @@
+{
+    "author" : ["||Jojo||#1234"],
+    "install_msg" : "sudo rm -rf /",
+    "name" : "ORFcog",
+    "short" : "Pinned automatisch die ORF Pressekonferenzen",
+    "description" : "",
+    "hidden" : true
+}
